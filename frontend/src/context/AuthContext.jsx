@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
     setToken(access_token);
 
     const userRes = await api.get('/auth/me', {
-      headers: { Authorization: Bearer  },
+      headers: { Authorization: `Bearer ${access_token}` },
     });
     setUser(userRes.data);
     return userRes.data;

@@ -10,7 +10,7 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('netsentry_token');
     if (token) {
-      config.headers.Authorization = Bearer ;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -23,7 +23,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       // Don't auto-redirect on login attempt failure
-      if (!error.config.url.includes('/auth/login')) {
+      if (error.config?.url && !error.config.url.includes('/auth/login')) {
         localStorage.removeItem('netsentry_token');
         localStorage.removeItem('netsentry_user');
       }
