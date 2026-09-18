@@ -37,7 +37,10 @@ Think of it as a security "health check" for VPN connections — you give it evi
 <!-- Replace these with actual screenshots or a short GIF before submission -->
 | Dashboard | Findings + Evidence | Remediation View |
 |---|---|---|
-| _add screenshot_ | _add screenshot_ | _add screenshot_ |
+| <img width="1916" height="968" alt="Screenshot 2026-09-18 231103" src="https://github.com/user-attachments/assets/0eaed9e9-522f-4ff2-94e8-18db0c22b37c" />
+ | <img width="1917" height="865" alt="Screenshot 2026-09-18 231753" src="https://github.com/user-attachments/assets/c59cb207-e4c8-4788-93b7-b772ad56973b" />
+ | <img width="1917" height="865" alt="Screenshot 2026-09-18 231846" src="https://github.com/user-attachments/assets/cf9015a1-cefe-4faf-8562-8961a54036da" />
+|
 
 **[Watch the demo video](#)** _(add link once recorded)_
 
