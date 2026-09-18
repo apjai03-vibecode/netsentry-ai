@@ -1,0 +1,129 @@
+﻿version: "3.9"
+
+services:
+  # -------------------------------------------------------------
+  # PostgreSQL Database
+  # -------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: netsentry-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-netsentry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netsentry_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-netsentry_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netsentry} -d ${POSTGRES_DB:-netsentry_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - netsentry_net
+
+  # -------------------------------------------------------------
+  # Redis Queue & Cache
+  # -------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: netsentry-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - netsentry_net
+
+  # -------------------------------------------------------------
+  # FastAPI Core API Service
+  # -------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netsentry-backend
+    restart: unless-stopped
+    environment:
+      PROJECT_NAME: "NetSentry AI"
+      ENVIRONMENT: "production"
+      DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-netsentry}:${POSTGRES_PASSWORD:-netsentry_secure_pass_2026}@db:5432/${POSTGRES_DB:-netsentry_db}"
+      REDIS_URL: "redis://redis:6379/0"
+      UPLOAD_DIR: "/app/uploads"
+      CAPTURE_ENCRYPTION_KEY: "${CAPTURE_ENCRYPTION_KEY:-bW5lZ0xKUlJpU3U5Zk11TFB0Sml4VjVvTzJSc0ZkVlU=}"
+      SECRET_KEY: "${SECRET_KEY:-netsentry_jwt_secret_key_sih2026_production_grade}"
+      ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+      CORS_ORIGINS: '["http://localhost", "http://localhost:3000", "http://127.0.0.1:3000"]'
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - netsentry_net
+
+  # -------------------------------------------------------------
+  # Celery Asynchronous PCAP Processing Worker
+  # -------------------------------------------------------------
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netsentry-celery
+    restart: unless-stopped
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+    environment:
+      PROJECT_NAME: "NetSentry AI Worker"
+      ENVIRONMENT: "production"
+      DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-netsentry}:${POSTGRES_PASSWORD:-netsentry_secure_pass_2026}@db:5432/${POSTGRES_DB:-netsentry_db}"
+      REDIS_URL: "redis://redis:6379/0"
+      UPLOAD_DIR: "/app/uploads"
+      CAPTURE_ENCRYPTION_KEY: "${CAPTURE_ENCRYPTION_KEY:-bW5lZ0xKUlJpU3U5Zk11TFB0Sml4VjVvTzJSc0ZkVlU=}"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - netsentry_net
+
+  # -------------------------------------------------------------
+  # React + Vite Production Frontend
+  # -------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: netsentry-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - netsentry_net
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
+
+networks:
+  netsentry_net:
+    driver: bridge
