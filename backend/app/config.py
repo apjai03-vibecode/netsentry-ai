@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
     # Database
-    # Defaults to PostgreSQL, but can be set to SQLite for local standalone development
+    # Defaults to SQLite for local zero-setup development; overridden by Docker Compose
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://netsentry:netsentry123@localhost:5432/netsentry_db"
+        "sqlite+aiosqlite:///./netsentry.db"
     )
 
     # Redis & Background Workers

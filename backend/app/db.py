@@ -45,11 +45,39 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Create all database tables on startup if they don't exist."""
+    """Create all database tables on startup and seed default demo accounts."""
+    # Import models so Base.metadata is fully populated
+    from app import models  # noqa: F401
+    from app.models import User
+    from app.auth import get_password_hash
+    from sqlalchemy import select
+
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables initialized successfully.")
+
+        # Seed default demo users if they don't already exist
+        async with AsyncSessionLocal() as session:
+            demo_accounts = [
+                ("analyst", "analyst@netsentry.internal", "Password123!", "analyst"),
+                ("admin", "admin@netsentry.internal", "Password123!", "admin"),
+            ]
+            for uname, email, pwd, role in demo_accounts:
+                stmt = select(User).where(User.username == uname)
+                res = await session.execute(stmt)
+                if not res.scalar_one_or_none():
+                    user = User(
+                        username=uname,
+                        email=email,
+                        hashed_password=get_password_hash(pwd),
+                        role=role,
+                        is_active=True,
+                    )
+                    session.add(user)
+                    logger.info(f"Seeded demo account '{uname}'.")
+            await session.commit()
+
     except Exception as e:
         logger.warning(
             f"Failed to initialize database tables automatically: {e}. "

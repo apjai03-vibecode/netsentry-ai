@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Lock, User, Mail, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -27,7 +27,11 @@ export default function AuthModal({ isOpen, onClose }) {
       }
       onClose();
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Authentication failed. Please check your credentials.';
+      const detail =
+        err.response?.data?.detail ||
+        (err.code === 'ERR_NETWORK' || !err.response
+          ? 'Cannot connect to backend server. Please verify FastAPI is running on http://127.0.0.1:8000.'
+          : 'Authentication failed. Please check your credentials.');
       setError(detail);
     } finally {
       setLoading(false);
@@ -38,6 +42,7 @@ export default function AuthModal({ isOpen, onClose }) {
     setUsername(u);
     setPassword(p);
     setIsRegister(false);
+    setError(null);
   };
 
   return (
