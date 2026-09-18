@@ -11,10 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.crypto import decrypt_file_to_bytes
 from app.db import AsyncSessionLocal
-from app.models import Finding, UploadJob, VPNSession
+from app.models import Finding, RiskAssessment, UploadJob, VPNSession
 from app.parsers.ike_parser import IKEParser
 from app.engines.rule_engine import RuleEngine
 from app.engines.fsm_engine import IKEStateMachineTracker
+from app.engines.scorer import RiskScorer
+from app.engines.remediation import RemediationGenerator
 from app.ml.ensemble import MLEnsemble
 
 logger = logging.getLogger(__name__)
@@ -59,6 +61,10 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
             rule_engine = RuleEngine()
             fsm_tracker = IKEStateMachineTracker()
             total_findings = 0
+            all_findings_for_job: list[dict] = []
+            highest_vuln_prob: float = 0.0
+            highest_anomaly_score: float = 0.0
+            top_shap_features: list[dict] = []
 
             # 4. Insert VPNSession and Finding records
             for ps in parsed_sessions:
@@ -97,6 +103,13 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
                 try:
                     ml_ensemble = MLEnsemble.get_instance()
                     verdict = ml_ensemble.analyze_session(ps)
+                    if verdict.vulnerability_probability > highest_vuln_prob:
+                        highest_vuln_prob = verdict.vulnerability_probability
+                    if verdict.anomaly_score > highest_anomaly_score:
+                        highest_anomaly_score = verdict.anomaly_score
+                    if verdict.shap_explanations and not top_shap_features:
+                        top_shap_features = verdict.shap_explanations
+
                     if verdict.is_vulnerable and verdict.vulnerability_probability >= 0.70:
                         ml_findings.append({
                             "rule_id": "ML-XGBOOST-SUSPICIOUS-FLOW",
@@ -133,8 +146,11 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
                 except Exception as ml_err:
                     logger.warning(f"ML analysis error on session: {ml_err}")
 
+                session_findings = rule_findings + fsm_findings + ml_findings
+                all_findings_for_job.extend(session_findings)
+
                 # Persist findings
-                for f_data in rule_findings + fsm_findings + ml_findings:
+                for f_data in session_findings:
                     finding = Finding(
                         upload_id=job_id,
                         session_id=vpn_session.id,
@@ -150,7 +166,32 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
                     session.add(finding)
                     total_findings += 1
 
-            # 5. Mark job as completed
+            # 5. Compute Risk Assessment & Actionable Remediation
+            risk_result = RiskScorer.calculate_score(
+                all_findings_for_job,
+                ml_vulnerability_prob=highest_vuln_prob,
+                ml_anomaly_score=highest_anomaly_score,
+            )
+
+            rep_session = parsed_sessions[0] if parsed_sessions else None
+            remediation = RemediationGenerator.generate_all_remediations(
+                rep_session, all_findings_for_job
+            )
+
+            risk_assessment = RiskAssessment(
+                upload_id=job_id,
+                overall_score=risk_result.overall_score,
+                risk_level=risk_result.risk_level,
+                findings_summary_json=json.dumps(risk_result.findings_summary),
+                ml_anomaly_score=highest_anomaly_score,
+                shap_top_features_json=json.dumps(top_shap_features),
+                config_diff_before=remediation["combined_before"],
+                config_diff_after=remediation["combined_after"],
+                executive_summary=risk_result.executive_summary,
+            )
+            session.add(risk_assessment)
+
+            # 6. Mark job as completed
             stmt_done = (
                 update(UploadJob)
                 .where(UploadJob.id == job_id)
@@ -160,7 +201,8 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
             await session.commit()
             logger.info(
                 f"Successfully processed PCAP for Job {job_id}: "
-                f"{len(parsed_sessions)} sessions, {total_findings} findings generated."
+                f"{len(parsed_sessions)} sessions, {total_findings} findings, "
+                f"Risk Score: {risk_result.overall_score} ({risk_result.risk_level})."
             )
 
         except Exception as e:
