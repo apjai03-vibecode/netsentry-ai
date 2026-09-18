@@ -41,6 +41,8 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         await conn.run_sync(Base.metadata.drop_all)
 
 
+import app.worker as worker
+
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Yield an HTTP client with get_db overridden to use the test session."""
@@ -48,9 +50,12 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    orig_worker_session = worker.AsyncSessionLocal
+    worker.AsyncSessionLocal = TestingSessionLocal
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
     app.dependency_overrides.clear()
+    worker.AsyncSessionLocal = orig_worker_session

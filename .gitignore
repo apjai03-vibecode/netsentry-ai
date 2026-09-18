@@ -54,6 +54,8 @@ netsentry.db
 # Temporary packet captures and uploads
 uploads/
 temp_captures/
+temp_uploads/
+backend/temp_uploads/
 *.pcap
 *.pcapng
 !sample_captures/*.pcap

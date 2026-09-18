@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import init_db
-from app.routers import auth
+from app.routers import auth, ingest
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,6 +50,7 @@ app.add_middleware(
 
 # Register API Routers
 app.include_router(auth.router, prefix=settings.API_V1_STR)
+app.include_router(ingest.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["General"])
