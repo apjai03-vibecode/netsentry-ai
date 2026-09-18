@@ -15,6 +15,7 @@ from app.models import Finding, UploadJob, VPNSession
 from app.parsers.ike_parser import IKEParser
 from app.engines.rule_engine import RuleEngine
 from app.engines.fsm_engine import IKEStateMachineTracker
+from app.ml.ensemble import MLEnsemble
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +92,49 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
                 # Evaluate Stateful FSM engine
                 fsm_findings = fsm_tracker.evaluate_session(ps)
 
+                # Evaluate ML Ensemble (XGBoost + Isolation Forest + SHAP)
+                ml_findings = []
+                try:
+                    ml_ensemble = MLEnsemble.get_instance()
+                    verdict = ml_ensemble.analyze_session(ps)
+                    if verdict.is_vulnerable and verdict.vulnerability_probability >= 0.70:
+                        ml_findings.append({
+                            "rule_id": "ML-XGBOOST-SUSPICIOUS-FLOW",
+                            "category": "Anomaly",
+                            "severity": "CRITICAL" if verdict.vulnerability_probability >= 0.90 else "HIGH",
+                            "title": f"AI Detection: Insecure Flow Signature ({int(verdict.vulnerability_probability * 100)}% Confidence)",
+                            "description": (
+                                "The XGBoost classifier trained on known VPN handshake patterns flagged this session as insecure."
+                            ),
+                            "rfc_reference": "NIST SP 800-57 / RFC 8247",
+                            "evidence_json": json.dumps({
+                                "vulnerability_probability": verdict.vulnerability_probability,
+                                "top_shap_features": verdict.shap_explanations,
+                            }),
+                            "remediation_hint": "Review the primary risk drivers flagged by SHAP explainability and upgrade proposals.",
+                        })
+                    if verdict.is_anomaly and verdict.anomaly_score >= 0.70:
+                        ml_findings.append({
+                            "rule_id": "ML-ISOFOREST-ANOMALOUS-FLOW",
+                            "category": "Anomaly",
+                            "severity": "MEDIUM",
+                            "title": f"AI Anomaly: Outlier Flow Signature (Score: {verdict.anomaly_score:.2f})",
+                            "description": (
+                                "Isolation Forest anomaly detector identified an out-of-distribution flow signature differing "
+                                "from standard baseline traffic."
+                            ),
+                            "rfc_reference": "RFC 7296",
+                            "evidence_json": json.dumps({
+                                "anomaly_score": verdict.anomaly_score,
+                                "top_shap_features": verdict.shap_explanations,
+                            }),
+                            "remediation_hint": "Inspect endpoint configurations for non-standard parameter sets or unusual packet distributions.",
+                        })
+                except Exception as ml_err:
+                    logger.warning(f"ML analysis error on session: {ml_err}")
+
                 # Persist findings
-                for f_data in rule_findings + fsm_findings:
+                for f_data in rule_findings + fsm_findings + ml_findings:
                     finding = Finding(
                         upload_id=job_id,
                         session_id=vpn_session.id,
