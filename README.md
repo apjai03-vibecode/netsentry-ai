@@ -1,210 +1,175 @@
-# NetSentry AI — IPsec VPN Protocol Analyzer & Security Assessment Framework
-**Problem Statement SIH26160 | Smart India Hackathon 2026**
-*Developed by Team Code Craft*
+# NetSentry AI
+
+**An AI-powered tool that checks if your VPN setup is secure.**
+
+Built for Smart India Hackathon 2026 (Problem Statement SIH26160) by Team Code Craft.
 
 ---
 
-## 📌 Executive Summary
+## What does this project do?
 
-NetSentry AI is a production-grade, AI-powered IPsec VPN Protocol Analyzer and Security Assessment Framework. It allows network engineers and security auditors to upload VPN packet captures (`.pcap`/`.pcapng`) or VPN configuration files (`swanctl.conf`, Cisco IOS configs) and perform deep protocol analysis.
+Upload a VPN packet capture (`.pcap`/`.pcapng`) or a VPN config file (like `swanctl.conf` or a Cisco config), and NetSentry AI will:
 
-The system combines:
-1. **RFC 4301 / RFC 7296 Rule Engine** (YAML-driven cryptographic audit: DH groups, ciphers, integrity, PFS, aggressive mode).
-2. **Stateful IKE Finite State Machine (FSM)** tracking negotiation integrity, sequence anomalies, and downgrade attacks.
-3. **Dual ML Anomaly Ensemble** (XGBoost classifier + Isolation Forest anomaly detector).
-4. **SHAP Explainability** attributing risk factors with exact percentage contributions.
-5. **Actionable Remediation** providing before/after configuration diffs and PDF export.
+1. Read the file and pull out the technical details of the VPN handshake (encryption used, key exchange method, etc.)
+2. Check those details against known security best practices
+3. Use a machine learning model to catch anything unusual that the rules might miss
+4. Give you a security score from 0 to 100, with a clear explanation of *why*
+5. Suggest exactly what to change in your config to fix any problems
+6. Let you download a PDF report of everything
+
+Think of it as a security "health check" for VPN connections — you give it evidence of a VPN session, and it tells you how safe it actually is.
 
 ---
 
-## 🏛️ System Architecture
+## How it works (in plain terms)
 
 ```
-                                  ┌───────────────────────────────┐
-                                  │      Client (React + Vite)    │
-                                  └───────────────┬───────────────┘
-                                                  │ Upload PCAP / Config
-                                                  ▼
-                                  ┌───────────────────────────────┐
-                                  │   FastAPI Ingestion Gateway   │
-                                  └───────────────┬───────────────┘
-                                                  │ Queue Job
-                                                  ▼
-                                  ┌───────────────────────────────┐
-                                  │      Redis / Async Worker     │
-                                  └───────────────┬───────────────┘
-                                                  │ Parse Packets
-                                                  ▼
-                                  ┌───────────────────────────────┐
-                                  │   Scapy / DPKT Parser Layer   │
-                                  └───────┬───────┬───────┬───────┘
-                                          │       │       │
-                 ┌────────────────────────┴─┐     │     ┌─┴────────────────────────┐
-                 │                          │     │     │                          │
-                 ▼                          ▼     ▼     ▼                          ▼
-        ┌─────────────────┐       ┌─────────────────┐ ┌──────────────────┐ ┌───────────────┐
-        │   Rule Engine   │       │ Stateful IKE FSM│ │  ML Ensemble     │ │  ESP Monitor  │
-        │  (RFC Compliance│       │ (Handshake Flow)│ │(XGBoost + I-Tree)│ │(Payload Check)│
-        └────────┬────────┘       └────────┬────────┘ └────────┬─────────┘ └───────┬───────┘
-                 │                         │                   │                   │
-                 └─────────────────────────┼───────────────────┴───────────────────┘
-                                           │
-                                           ▼
-                                ┌─────────────────────┐
-                                │   SHAP Explainable  │
-                                │   Risk Scoring &    │
-                                │   Remediation Diff  │
-                                └──────────┬──────────┘
-                                           │
-                        ┌──────────────────┴──────────────────┐
-                        ▼                                     ▼
-             ┌─────────────────────┐               ┌─────────────────────┐
-             │ PostgreSQL Database │               │  PDF Export Engine  │
-             └─────────────────────┘               └─────────────────────┘
----
-
-## 🧠 Machine Learning Model Performance
-
-NetSentry AI utilizes a dual-model detection ensemble combining supervised learning with unsupervised anomaly detection, validated against a labeled testbed dataset:
-
-| Metric | Headline Performance | Description |
-|---|:---:|---|
-| **Accuracy** | **100.0%** | Overall correct classifications across secure and insecure handshakes |
-| **Precision** | **100.0%** | Reliability of positive vulnerability alerts (zero false alerts) |
-| **Recall / Detection Rate** | **100.0%** | Catch rate for weak DH, deprecated ciphers, and truncated flows |
-| **False Positive Rate (FPR)** | **0.0%** | Secure modern configurations flagged incorrectly |
-| **F1-Score** | **1.000** | Harmonic mean of precision and recall |
-
-### Validation Confusion Matrix (109 Test Samples)
+You upload a file
+      │
+      ▼
+The file gets parsed (we extract the technical VPN details)
+      │
+      ▼
+Four checks run at the same time:
+  • Rule Engine       → checks against known security standards (RFCs)
+  • Handshake Tracker → makes sure the VPN negotiation happened correctly
+  • ML Model          → flags anything statistically unusual
+  • ESP Monitor       → checks the encrypted data channel
+      │
+      ▼
+All four results are combined into one risk score (0–100)
+      │
+      ▼
+You see the score, the findings, and suggested fixes on the dashboard
+(and can export it all as a PDF)
 ```
-                   Predicted Benign   Predicted Vulnerable
-Actual Benign            54 (TN)               0 (FP)
-Actual Vulnerable         0 (FN)              55 (TP)
-```
-
-- **Primary Model**: Supervised `xgboost.XGBClassifier` (100 estimators, max depth 4) trained on 12-dimensional handshake flow features.
-- **Secondary Model**: Unsupervised `sklearn.ensemble.IsolationForest` detecting novel zero-day flow anomalies and out-of-distribution timings.
-- **Explainability**: Tree SHAP attribution ranking the exact percentage contribution of each feature towards the vulnerability score.
 
 ---
 
-## 📁 Repository Structure
+## Tech stack
+
+| Part | What we used | Why |
+|---|---|---|
+| Frontend | React + Vite + Tailwind CSS | Fast, modern, easy to style |
+| Backend | Python + FastAPI | Simple to write, great for APIs |
+| Packet parsing | Scapy, DPKT | Standard tools for reading network traffic |
+| Database | PostgreSQL (SQLite for local testing) | Stores findings and history |
+| Background jobs | Redis + Celery | So file processing doesn't freeze the app |
+| Machine learning | XGBoost + Isolation Forest | Catches known and unknown security issues |
+| Explainability | SHAP | Shows *why* the model flagged something, not just that it did |
+| Reports | ReportLab | Generates downloadable PDF summaries |
+
+---
+
+## Project folders — what's where
 
 ```
 netsentry-ai/
-├── backend/
+├── backend/               → all the Python/FastAPI code
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── config.py             # App settings & environment configurations
-│   │   ├── db.py                 # Async SQLAlchemy engine, session & init
-│   │   ├── models.py             # Database models (User, UploadJob, VPNSession, Finding, RiskAssessment)
-│   │   ├── schemas.py            # Pydantic schemas for serialization
-│   │   ├── auth.py               # Password hashing, JWT tokens, RBAC dependencies
-│   │   ├── core/
-│   │   │   └── crypto.py         # Fernet AES-256 capture encryption at rest
-│   │   ├── parsers/
-│   │   │   └── ike_parser.py     # Scapy/DPKT IKEv1/IKEv2 & ESP Protocol 50 parser
-│   │   ├── rules/
-│   │   │   └── ike_rules.yaml    # RFC 8247, 8221, 7296 compliance rules
-│   │   ├── engines/
-│   │   │   ├── rule_engine.py    # YAML-driven RFC evaluation engine
-│   │   │   ├── fsm_engine.py     # Stateful IKE FSM & downgrade detector
-│   │   │   ├── scorer.py         # 0-100 explainable risk scorer
-│   │   │   └── remediation.py    # strongSwan & Cisco IOS diff generator
-│   │   ├── ml/
-│   │   │   ├── features.py       # 12-dimensional numerical feature extraction
-│   │   │   ├── dataset.py        # 545 labeled testbed samples generator
-│   │   │   ├── xgboost_model.py  # Supervised XGBoost classifier
-│   │   │   ├── isolation_forest.py # Unsupervised Isolation Forest anomaly detector
-│   │   │   ├── shap_explain.py   # Tree SHAP feature attribution
-│   │   │   └── ensemble.py       # ML Ensemble coordinator
-│   │   ├── reports/
-│   │   │   └── pdf_generator.py  # ReportLab executive audit PDF exporter
-│   │   ├── routers/
-│   │   │   ├── auth.py           # Auth endpoints (/register, /login, /me, /users)
-│   │   │   ├── ingest.py         # Upload & jobs endpoints (/upload, /jobs)
-│   │   │   ├── assessment.py     # Assessment & PDF endpoints (/assessments)
-│   │   │   └── ml_metrics.py     # ML telemetry endpoints (/ml/metrics, /ml/predict)
-│   │   ├── worker.py             # Celery async worker & non-blocking fallback
-│   │   └── main.py               # FastAPI application entrypoint
-│   ├── tests/                    # 44 passing unit & integration tests
-│   │   ├── conftest.py
-│   │   ├── test_auth.py
-│   │   ├── test_ingest.py
-│   │   ├── test_engines.py
-│   │   ├── test_ml.py
-│   │   └── test_scorer_remediation.py
-│   └── requirements.txt
-├── frontend/                     # React 19 + Vite 8 + Tailwind CSS v4 Dashboard
-│   ├── src/
-│   │   ├── components/           # ScoreGauge, UploadZone, FindingsTable, RemediationDiff, etc.
-│   │   ├── context/              # AuthContext (JWT session management)
-│   │   ├── App.jsx               # Master Dashboard with light-themed UI
-│   │   └── api.js                # Axios client with bearer token interceptors
-│   ├── Dockerfile                # Multi-stage production Nginx container
-│   └── nginx.conf                # Reverse proxy configuration
-├── docker-compose.yml            # Multi-container stack (Postgres, Redis, FastAPI, Celery, Nginx)
-├── .github/workflows/
-│   └── ci-deploy.yml             # GitHub Actions CI/CD test & build workflow
-├── .gitignore
-├── README.md
-└── LICENSE
+│   │   ├── parsers/       → reads the uploaded VPN files
+│   │   ├── rules/         → the security rules (in a YAML file, easy to edit)
+│   │   ├── engines/       → the actual checking logic (rules, handshake, scoring)
+│   │   ├── ml/            → the machine learning models
+│   │   ├── reports/       → PDF generation
+│   │   └── routers/       → the API endpoints (upload, login, results, etc.)
+│   └── tests/             → automated tests (44 passing)
+├── frontend/              → the React dashboard you see in the browser
+├── docker-compose.yml     → runs the whole project with one command
+└── README.md              → you are here
 ```
 
 ---
 
-## ⚡ Quick Start Options
+## Getting it running
 
-### Option A: One-Command Docker Deployment (Production Stack)
+You have two options — pick whichever is easier for you.
+
+### Option A: One command with Docker (recommended if you have Docker)
+
 ```bash
 docker compose up --build
 ```
-- **Web Dashboard**: `http://localhost:3000`
-- **FastAPI API & Docs**: `http://localhost:8000/docs`
-- **Services included**: PostgreSQL 16, Redis 7, FastAPI API, Celery Worker, React Nginx Frontend.
 
----
+That's it. Once it's done:
+- Dashboard: **http://localhost:3000**
+- API docs: **http://localhost:8000/docs**
 
-### Option B: Local Standalone Development (No Docker Required)
+This starts everything for you — the database, the background worker, the backend, and the frontend.
 
-#### 1. Backend Setup
+### Option B: Run it manually (no Docker needed)
+
+**1. Start the backend:**
 ```bash
 cd backend
 python -m venv venv
 
-# Windows PowerShell:
+# Windows:
 .\venv\Scripts\Activate.ps1
-# Linux/macOS:
+# Mac/Linux:
 source venv/bin/activate
 
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
-- Interactive Swagger UI: `http://127.0.0.1:8000/docs`
+Backend is now running at http://127.0.0.1:8000/docs
 
-#### 2. Run Test Suite (44 Tests Passing)
-```bash
-cd backend
-pytest tests -v
-```
-
-#### 3. Frontend Setup
+**2. Start the frontend (in a new terminal):**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-- Open `http://localhost:3000` in your browser.
-- Click **"⚡ Test with Insecure Sample PCAP"** on the dashboard for instant 1-click audit demonstration!
+Open http://localhost:3000 in your browser.
+
+**3. Try it instantly:**
+Click **"⚡ Test with Insecure Sample PCAP"** on the dashboard — this runs a full analysis on a sample file with no setup needed, so you can see the tool in action right away.
 
 ---
 
-## 📊 Machine Learning Validation Baseline
+## Running the tests
 
-Validated empirically across 109 out-of-sample IKEv1/IKEv2 sessions:
-- **Accuracy**: **100.0%** (109 / 109 correct)
-- **Precision**: **100.0%** (Zero false alarms on legitimate VPN handshakes)
-- **Recall**: **100.0%** (100% detection rate of vulnerable cryptographic flows)
-- **False Positive Rate (FPR)**: **0.0%**
-- **F1 Score**: **1.000**
-- **Explainability**: Tree SHAP exact feature attribution attributing risk contributions for DH groups, cipher block sizes, hash integrity, and protocol versioning.
+```bash
+cd backend
+pytest tests -v
+```
+
+This runs 44 automated tests covering login/auth, file uploads, the rule/ML engines, and the scoring logic.
+
+---
+
+## How good is the machine learning model?
+
+We tested the model on a set of VPN sessions to see how well it tells secure configs apart from insecure ones.
+
+> **Note:** these numbers were measured on our own generated test data. We're actively testing against real-world VPN captures too, and will update these numbers as that testing continues — real-world traffic is messier than synthetic data, so we expect the numbers to shift once tested more broadly.
+
+| Metric | What it means | Result |
+|---|---|---|
+| Accuracy | How often it got the right answer overall | High |
+| Precision | When it says "this is vulnerable," how often it's right | High |
+| Recall | Of all the actually-vulnerable configs, how many it caught | High |
+| False Positive Rate | How often it wrongly flagged a secure config | Low |
+
+We also use **SHAP** to explain every prediction — so instead of just saying "this is risky," it tells you *which specific factor* (e.g. weak encryption, missing forward secrecy) contributed most to that score.
+
+---
+
+## What makes this different from just running Wireshark manually
+
+- **It's automated** — no manually reading packet dumps
+- **It explains itself** — every finding comes with the evidence and the reasoning, not just a verdict
+- **It suggests fixes** — you get a ready-to-use corrected config, not just a warning
+- **It catches unknowns too** — the ML layer can flag unusual behavior even if it doesn't match a known bad pattern
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE) for details.
+
+---
+
+## Team
+
+Team Code Craft — Smart India Hackathon 2026 — Problem Statement SIH26160
