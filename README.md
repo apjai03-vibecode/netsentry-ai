@@ -237,11 +237,12 @@ We're upfront about what this version does and doesn't cover yet:
 
 | Name | Role |
 |---|---|
-| _Add name_ | Backend / API |
-| _Add name_ | ML / Data |
-| _Add name_ | Frontend / Dashboard |
-| _Add name_ | Architecture / DevOps |
-| _Add name_ | Research / Documentation |
+| Aswini V | Backend / API |
+| Aparajitha J | ML / Data |
+| Karthika MP | Frontend / Dashboard |
+| Karthika R | Architecture / DevOps |
+| Hema U | Research / Documentation |
+| Gayathri D | Presentation ppt |
 
 ---
 
