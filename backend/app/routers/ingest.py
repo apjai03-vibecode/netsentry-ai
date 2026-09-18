@@ -22,8 +22,8 @@ from app.auth import get_current_user
 from app.config import settings
 from app.core.crypto import encrypt_bytes
 from app.db import get_db
-from app.models import UploadJob, User, VPNSession
-from app.schemas import UploadJobResponse, VPNSessionResponse
+from app.models import Finding, UploadJob, User, VPNSession
+from app.schemas import FindingResponse, UploadJobResponse, VPNSessionResponse
 from app.worker import dispatch_pcap_job
 
 router = APIRouter(prefix="/ingest", tags=["Ingestion"])
@@ -218,4 +218,37 @@ async def get_job_sessions(
 
     stmt_sessions = select(VPNSession).where(VPNSession.upload_id == job_id)
     result = await db.execute(stmt_sessions)
+    return result.scalars().all()
+
+
+@router.get(
+    "/jobs/{job_id}/findings",
+    response_model=List[FindingResponse],
+    summary="Get security findings and RFC violations for an upload job"
+)
+async def get_job_findings(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve all security findings, rule violations, and state anomalies for an upload job."""
+    # Check job ownership
+    stmt_job = select(UploadJob).where(UploadJob.id == job_id)
+    res_job = await db.execute(stmt_job)
+    job = res_job.scalar_one_or_none()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Upload job not found."
+        )
+
+    if current_user.role != "admin" and job.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this job."
+        )
+
+    stmt_findings = select(Finding).where(Finding.upload_id == job_id).order_by(Finding.id)
+    result = await db.execute(stmt_findings)
     return result.scalars().all()

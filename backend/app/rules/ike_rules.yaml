@@ -1,0 +1,106 @@
+# NetSentry AI - IPsec / IKE Security Rule Definitions
+# Compliance Standards: RFC 8247, RFC 8221, RFC 7296, RFC 2409, NIST SP 800-131A
+
+rules:
+  - rule_id: SEC-DH-WEAK
+    name: Weak or Deprecated Diffie-Hellman Group
+    category: Cryptography
+    severity: CRITICAL
+    rfc: RFC 8247 Section 2.4
+    description: >
+      The Diffie-Hellman group in use provides less than 112 bits of symmetric cryptographic
+      strength. Groups 1 (768-bit) and 2 (1024-bit) are vulnerable to academic and nation-state
+      discrete logarithm precomputation attacks (e.g. Logjam). Group 5 (1536-bit) is deprecated.
+    condition:
+      target_field: dh_group_num
+      check_type: in_list
+      values: [1, 2, 5]
+      fallback_name_match: ["Group 1", "Group 2", "Group 5", "768-bit", "1024-bit", "1536-bit", "modp768", "modp1024", "modp1536"]
+    remediation: >
+      Reconfigure IPsec proposals to mandate modern DH groups: Group 14 (2048-bit MODP) at a
+      minimum, or preferably elliptic curve groups such as Group 19 (256-bit ECP / NIST P-256)
+      or Curve25519 (RFC 8031).
+
+  - rule_id: SEC-CIPHER-DEPRECATED
+    name: Deprecated or Insecure Encryption Cipher (DES / 3DES / NULL)
+    category: Cryptography
+    severity: CRITICAL
+    rfc: RFC 8221 Section 5
+    description: >
+      Single DES (56-bit key) is crackable via brute force within hours. Triple DES (3DES)
+      is vulnerable to collision attacks due to its 64-bit block size (Sweet32 attack, CVE-2016-2183)
+      and is disallowed by NIST SP 800-131A. NULL encryption provides zero confidentiality.
+    condition:
+      target_field: cipher
+      check_type: contains_any
+      values: ["DES", "3DES", "DES-CBC", "3DES-CBC", "NULL", "RC5", "IDEA", "BLOWFISH"]
+    remediation: >
+      Upgrade IPsec encryption algorithms to modern Authenticated Encryption with Associated Data
+      (AEAD) suites: AES-GCM-256 or AES-GCM-128. For standard CBC, deploy AES-CBC-256 alongside
+      a robust integrity mechanism (e.g. HMAC-SHA256).
+
+  - rule_id: SEC-INTEG-WEAK
+    name: Deprecated Integrity or PRF Algorithm (MD5 / SHA-1)
+    category: Cryptography
+    severity: HIGH
+    rfc: RFC 8247 Section 2.2 & 2.3
+    description: >
+      MD5 is collision-broken and cryptographically obsolete. SHA-1 has practical chosen-prefix
+      collision attacks and is deprecated across modern secure protocols. Utilizing MD5 or SHA-1
+      in IKE negotiations compromises data origin authentication and pseudorandom key derivation.
+    condition:
+      target_fields: ["integrity_algo", "prf_algo"]
+      check_type: contains_any
+      values: ["MD5", "SHA1", "SHA-1", "HMAC-MD5", "HMAC-SHA1"]
+    remediation: >
+      Upgrade IKE PRF and ESP integrity algorithms to the SHA-2 family: PRF_HMAC_SHA2_256 /
+      AUTH_HMAC_SHA2_256_128 or higher, or migrate to AEAD ciphers (AES-GCM) that provide native
+      cryptographic authentication.
+
+  - rule_id: SEC-IKEV1-AGGRESSIVE
+    name: Insecure IKEv1 Aggressive Mode PSK Exposure
+    category: Protocol Flow
+    severity: CRITICAL
+    rfc: RFC 2409 Section 5.4
+    description: >
+      IKEv1 Aggressive Mode collapses the handshake into three packets, transmitting identity
+      payloads and authentication hashes in cleartext. Attackers capturing this exchange can
+      extract the client's PSK hash and execute offline dictionary/brute-force cracking attacks.
+    condition:
+      custom_check: check_ikev1_aggressive
+    remediation: >
+      Immediately disable IKEv1 Aggressive Mode. Migrate to IKEv2 (RFC 7296) or transition to
+      IKEv1 Main Mode utilizing strong digital certificates (RSA/ECDSA) rather than pre-shared keys.
+
+  - rule_id: SEC-CHILD-SA-NO-PFS
+    name: Missing Perfect Forward Secrecy (PFS) in Child SA
+    category: Cryptography
+    severity: MEDIUM
+    rfc: RFC 7296 Section 1.3.1
+    description: >
+      Child SA key material is derived without a fresh Diffie-Hellman exchange. Without PFS,
+      a future compromise of the primary IKE SA or long-term private key enables retroactive
+      decryption of recorded historical traffic across all Child SAs.
+    condition:
+      target_field: pfs_enabled
+      check_type: equals
+      value: false
+    remediation: >
+      Enable Perfect Forward Secrecy (PFS) in your VPN configuration (e.g. 'esp = aes256gcm16-modp2048'
+      or 'pfs = yes' / 'crypto map set pfs group14').
+
+  - rule_id: SEC-IKEV1-LEGACY
+    name: Obsolete IKEv1 Protocol Protocol Deployment
+    category: Protocol Flow
+    severity: MEDIUM
+    rfc: RFC 7296 / RFC 8247
+    description: >
+      IKEv1 is considered legacy and superseded by IKEv2. IKEv1 suffers from higher round-trip latency,
+      fragile NAT traversal, lack of denial-of-service cookies on initial requests, and complex rekeying.
+    condition:
+      target_field: ike_version
+      check_type: equals
+      value: 1
+    remediation: >
+      Upgrade peer gateways and endpoints to IKEv2 (RFC 7296) to enable modern crypto agility,
+      MOBIKE mobility support, and built-in DoS protection.

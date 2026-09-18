@@ -11,8 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.crypto import decrypt_file_to_bytes
 from app.db import AsyncSessionLocal
-from app.models import UploadJob, VPNSession
+from app.models import Finding, UploadJob, VPNSession
 from app.parsers.ike_parser import IKEParser
+from app.engines.rule_engine import RuleEngine
+from app.engines.fsm_engine import IKEStateMachineTracker
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,11 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
             # 3. Parse IKE / IPsec sessions
             parsed_sessions = IKEParser.parse_pcap(raw_pcap_bytes)
 
-            # 4. Insert VPNSession records
+            rule_engine = RuleEngine()
+            fsm_tracker = IKEStateMachineTracker()
+            total_findings = 0
+
+            # 4. Insert VPNSession and Finding records
             for ps in parsed_sessions:
                 vpn_session = VPNSession(
                     upload_id=job_id,
@@ -77,6 +83,30 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
                     raw_metadata_json=json.dumps(ps.raw_metadata),
                 )
                 session.add(vpn_session)
+                await session.flush()  # Obtain vpn_session.id
+
+                # Evaluate Rule-based RFC engine
+                rule_findings = rule_engine.evaluate(ps)
+
+                # Evaluate Stateful FSM engine
+                fsm_findings = fsm_tracker.evaluate_session(ps)
+
+                # Persist findings
+                for f_data in rule_findings + fsm_findings:
+                    finding = Finding(
+                        upload_id=job_id,
+                        session_id=vpn_session.id,
+                        rule_id=f_data["rule_id"],
+                        category=f_data["category"],
+                        severity=f_data["severity"],
+                        title=f_data["title"],
+                        description=f_data["description"],
+                        rfc_reference=f_data.get("rfc_reference"),
+                        evidence_json=f_data.get("evidence_json"),
+                        remediation_hint=f_data.get("remediation_hint"),
+                    )
+                    session.add(finding)
+                    total_findings += 1
 
             # 5. Mark job as completed
             stmt_done = (
@@ -86,7 +116,10 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
             )
             await session.execute(stmt_done)
             await session.commit()
-            logger.info(f"Successfully processed PCAP for Job {job_id} ({len(parsed_sessions)} sessions discovered)")
+            logger.info(
+                f"Successfully processed PCAP for Job {job_id}: "
+                f"{len(parsed_sessions)} sessions, {total_findings} findings generated."
+            )
 
         except Exception as e:
             logger.error(f"Error processing PCAP for Job {job_id}: {e}", exc_info=True)
