@@ -2,7 +2,18 @@
 
 **An AI-powered tool that checks if your VPN setup is secure.**
 
-Built for Smart India Hackathon 2026 (Problem Statement SIH26160) by Team Code Craft.
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![Node](https://img.shields.io/badge/node-24-green)
+![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen)
+
+| | |
+|---|---|
+| **Problem Statement ID** | SIH26160 |
+| **Problem Statement Title** | AI-Powered IPsec VPN Protocol Analyzer and Security Assessment Framework |
+| **Theme** | Cybersecurity & AI |
+| **Event** | Smart India Hackathon 2026 |
+| **Team** | Code Craft |
 
 ---
 
@@ -18,6 +29,17 @@ Upload a VPN packet capture (`.pcap`/`.pcapng`) or a VPN config file (like `swan
 6. Let you download a PDF report of everything
 
 Think of it as a security "health check" for VPN connections — you give it evidence of a VPN session, and it tells you how safe it actually is.
+
+---
+
+## Screenshots
+
+<!-- Replace these with actual screenshots or a short GIF before submission -->
+| Dashboard | Findings + Evidence | Remediation View |
+|---|---|---|
+| _add screenshot_ | _add screenshot_ | _add screenshot_ |
+
+**[Watch the demo video](#)** _(add link once recorded)_
 
 ---
 
@@ -82,6 +104,14 @@ netsentry-ai/
 ---
 
 ## Getting it running
+
+Before you start, copy the example environment file and fill in your own values:
+
+```bash
+cp .env.example .env
+```
+
+This sets your database URL, secret key, and Redis URL. Sensible defaults are provided for local development.
 
 You have two options — pick whichever is easier for you.
 
@@ -164,12 +194,58 @@ We also use **SHAP** to explain every prediction — so instead of just saying "
 
 ---
 
-## License
+## Main API endpoints
 
-MIT — see [LICENSE](./LICENSE) for details.
+Full interactive docs are always available at `/docs` once the backend is running. Quick reference:
+
+| Method | Endpoint | What it does |
+|---|---|---|
+| POST | `/api/auth/register` | Create a new account |
+| POST | `/api/auth/login` | Log in and get a JWT token |
+| GET | `/api/auth/me` | Get the logged-in user's details |
+| POST | `/api/upload` | Upload a PCAP/PCAPNG or config file |
+| GET | `/api/jobs/{job_id}` | Check the status of an upload/analysis job |
+| GET | `/api/assessments/{job_id}` | Get the full risk assessment and findings |
+| GET | `/api/ml/metrics` | View current ML model performance stats |
+
+---
+
+## Security & data handling
+
+Since this tool processes network capture files that can contain sensitive data:
+
+- Uploaded files are **encrypted at rest** (AES-256 via Fernet)
+- Raw captures are **automatically deleted** after a configurable retention window — only the extracted metadata and findings are kept long-term
+- All API access requires authentication (JWT), with role-based permissions (`analyst` / `admin`)
+- File uploads are validated for type and size before processing, and rate-limited to prevent abuse
+
+---
+
+## Known limitations & what's next
+
+We're upfront about what this version does and doesn't cover yet:
+
+- Currently supports **IKEv1 and IKEv2** — other VPN protocols (WireGuard, OpenVPN, SSL VPN) are not yet supported
+- ML model has been validated primarily on our own generated test dataset; broader testing against diverse real-world captures is ongoing
+- No live/real-time traffic capture yet — currently works on uploaded files (pcap/config) only
+- Planned next: SIEM/SOC tool integration, support for additional VPN protocols, and expanded real-world validation data
 
 ---
 
 ## Team
 
-Team Code Craft — Smart India Hackathon 2026 — Problem Statement SIH26160
+**Team Code Craft** — Smart India Hackathon 2026 — Problem Statement SIH26160
+
+| Name | Role |
+|---|---|
+| _Add name_ | Backend / API |
+| _Add name_ | ML / Data |
+| _Add name_ | Frontend / Dashboard |
+| _Add name_ | Architecture / DevOps |
+| _Add name_ | Research / Documentation |
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE) for details.
