@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import UploadZone from './components/UploadZone';
@@ -8,8 +8,9 @@ import RemediationDiff from './components/RemediationDiff';
 import MLMetricsPanel from './components/MLMetricsPanel';
 import RulesCatalog from './components/RulesCatalog';
 import AuthModal from './components/AuthModal';
+import SessionInspector from './components/SessionInspector';
 import api from './api';
-import { Download, Loader2, Sparkles, FileText, CheckCircle2, Shield } from 'lucide-react';
+import { Download, Loader2, FileText, CheckCircle2, Shield, FileJson, RefreshCw, Layers } from 'lucide-react';
 
 function DashboardContent() {
   const { user } = useAuth();
@@ -61,6 +62,31 @@ function DashboardContent() {
     } finally {
       setDownloadingPdf(false);
     }
+  };
+
+  const handleDownloadJson = () => {
+    if (!assessment) return;
+    const exportBundle = {
+      assessment_id: assessment.upload_id,
+      timestamp: new Date().toISOString(),
+      overall_risk_score: assessment.overall_score,
+      risk_level: assessment.risk_level,
+      executive_summary: assessment.executive_summary,
+      ml_anomaly_score: assessment.ml_anomaly_score,
+      findings_count: findings.length,
+      findings: findings,
+      sessions: sessions,
+      remediation: {
+        swanctl: assessment.config_diff_after,
+      },
+    };
+    const blob = new Blob([JSON.stringify(exportBundle, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `NetSentry-Evidence-${assessment.upload_id ? assessment.upload_id.slice(0, 8) : 'audit'}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -205,50 +231,68 @@ crypto ipsec profile NETSENTRY_PROFILE
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans">
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAuth={() => setAuthModalOpen(true)}
+        findingsCount={findings.length}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
-        {/* Banner with PDF Export Button */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        {/* Enterprise Command & Session Bar */}
+        <div className="bg-white px-5 py-3.5 rounded-xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Live VPN Security Audit Engine
+            <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500">
+              <span>Audits</span>
+              <span>/</span>
+              <span className="text-slate-800 font-semibold">
+                {assessment ? `Capture_${assessment.upload_id ? assessment.upload_id.slice(0, 8) : 'demo'}` : 'New Capture'}
               </span>
+              <span>/</span>
+              <span className="text-emerald-700 font-medium">192.168.1.100:500 ➔ 198.51.100.1:500</span>
             </div>
-            <h1 className="text-xl font-bold text-slate-900 mt-1">
-              IPsec Protocol Security Assessment & Remediation
+            <h1 className="text-sm font-bold text-slate-900 font-mono mt-0.5 flex items-center gap-2">
+              <span>IPsec IKEv1/IKEv2 Cryptographic Compliance Audit</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-rose-100 text-rose-800 font-bold">
+                {findings.length} Violations
+              </span>
             </h1>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {assessment && (
-              <button
-                onClick={handleDownloadPdf}
-                disabled={downloadingPdf}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {downloadingPdf ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                <span>Export Executive PDF Audit Report</span>
-              </button>
+              <>
+                <button
+                  onClick={handleDownloadJson}
+                  title="Export machine-readable JSON for SIEM/SOC ingestion"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-mono font-medium rounded-lg border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <FileJson className="w-3.5 h-3.5 text-slate-600" />
+                  <span>JSON Evidence</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-semibold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {downloadingPdf ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                  <span>Export Executive PDF</span>
+                </button>
+              </>
             )}
           </div>
         </div>
 
         {/* Tab 1: Security Audit Dashboard */}
         {activeTab === 'audit' && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             <UploadZone
               onJobStarted={(job) => setCurrentJob(job)}
               onJobCompleted={handleJobCompleted}
@@ -256,15 +300,20 @@ crypto ipsec profile NETSENTRY_PROFILE
             />
 
             {loadingAssessment ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center shadow-xs">
-                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />
-                <span className="text-sm font-semibold text-slate-800">Generating Explainable Risk Assessment...</span>
-                <span className="text-xs text-slate-400 mt-1">Running RiskScorer and RemediationGenerator algorithms</span>
+              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center shadow-xs">
+                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
+                <span className="text-xs font-mono font-semibold text-slate-800">
+                  Executing Triple-Engine Audit Pipeline...
+                </span>
+                <span className="text-[11px] font-mono text-slate-400 mt-1">
+                  RFC Rule Matcher • IKE FSM State Tracker • Tree SHAP Force Calculation
+                </span>
               </div>
             ) : (
               assessment && (
                 <>
-                  <ScoreGauge assessment={assessment} findings={findings} />
+                  <ScoreGauge assessment={assessment} findings={findings} sessions={sessions} />
+                  <SessionInspector assessment={assessment} findings={findings} />
                   <FindingsTable findings={findings} />
                   <RemediationDiff assessment={assessment} />
                 </>
@@ -282,15 +331,15 @@ crypto ipsec profile NETSENTRY_PROFILE
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="bg-white border-t border-slate-200 py-4 mt-8 text-xs text-slate-500 font-mono">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-indigo-600" />
-            <span className="font-semibold text-slate-700">NetSentry AI</span>
-            <span>— Smart India Hackathon 2026 (Problem Statement SIH26160)</span>
+            <Shield className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="font-semibold text-slate-800">NetSentry AI</span>
+            <span>• SIH26160 • Team Code Craft</span>
           </div>
           <div>
-            <span>Developed by <b>Team Code Craft</b> • Hardened for RFC 4301, 7296, 8247, 8221 Compliance</span>
+            <span>RFC 4301 / RFC 7296 / RFC 8247 / RFC 8221 Verified Baseline</span>
           </div>
         </div>
       </footer>

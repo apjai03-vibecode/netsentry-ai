@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { BookOpen, ShieldCheck, ShieldAlert, CheckCircle, ExternalLink } from 'lucide-react';
 
 export default function RulesCatalog() {
@@ -85,30 +85,53 @@ export default function RulesCatalog() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-4">
         {rules.map((r) => {
-          let badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
-          if (r.severity === 'CRITICAL') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
-          if (r.severity === 'HIGH') badgeClass = 'bg-orange-50 text-orange-700 border-orange-200';
+          let badgeClass = 'bg-amber-50 text-amber-800 border-amber-200';
+          if (r.severity === 'CRITICAL') badgeClass = 'bg-rose-50 text-rose-800 border-rose-200';
+          if (r.severity === 'HIGH') badgeClass = 'bg-orange-50 text-orange-800 border-orange-200';
+          if (r.severity === 'MEDIUM') badgeClass = 'bg-amber-50 text-amber-800 border-amber-200';
+
+          const rfcNum = r.rfc.match(/RFC\s*(\d+)/i)?.[1];
+          const rfcLink = rfcNum ? `https://datatracker.ietf.org/doc/html/rfc${rfcNum}` : null;
 
           return (
-            <div key={r.id} className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/40 hover:bg-slate-50 transition-colors flex flex-col justify-between">
+            <div key={r.id} className="p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors flex flex-col justify-between shadow-2xs">
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${badgeClass}`}>
-                    {r.severity}
-                  </span>
-                  <span className="text-[11px] font-mono text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                    {r.rfc}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded border ${badgeClass}`}>
+                      {r.severity}
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {r.id}
+                    </span>
+                  </div>
+
+                  {rfcLink ? (
+                    <a
+                      href={rfcLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-mono text-indigo-600 hover:text-indigo-800 bg-indigo-50/70 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200/60 transition-colors"
+                      title="Read full IETF RFC specification"
+                    >
+                      <span>{r.rfc}</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                    </a>
+                  ) : (
+                    <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                      {r.rfc}
+                    </span>
+                  )}
                 </div>
 
                 <h4 className="text-xs font-bold text-slate-900">{r.name}</h4>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">{r.description}</p>
+                <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">{r.description}</p>
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-slate-200/60 text-[11px] text-emerald-800 bg-emerald-50/50 p-2 rounded-lg">
-                <b>Fix:</b> {r.remediation}
+              <div className="mt-3 pt-2 border-t border-slate-100 text-[11px] font-mono text-emerald-900 bg-emerald-50/60 p-2 rounded">
+                <span className="font-bold text-emerald-950 font-sans">Hardening Action:</span> {r.remediation}
               </div>
             </div>
           );
@@ -117,3 +140,4 @@ export default function RulesCatalog() {
     </div>
   );
 }
+
