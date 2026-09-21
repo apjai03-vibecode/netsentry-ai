@@ -27,9 +27,10 @@ export default function AuthModal({ isOpen, onClose }) {
       }
       onClose();
     } catch (err) {
+      const isServerDown = !err.response || err.code === 'ERR_NETWORK' || err.response?.status >= 500;
       const detail =
         err.response?.data?.detail ||
-        (err.code === 'ERR_NETWORK' || !err.response
+        (isServerDown
           ? 'Cannot connect to backend server. Please verify FastAPI is running on http://127.0.0.1:8000.'
           : 'Authentication failed. Please check your credentials.');
       setError(detail);
