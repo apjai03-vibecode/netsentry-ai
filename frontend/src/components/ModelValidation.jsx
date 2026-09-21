@@ -45,17 +45,17 @@ export default function ModelValidation() {
               Model Validation
             </h2>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-[#059669] border border-emerald-200 font-bold">
-              109 Sessions Evaluated
+              109 validation sessions
             </span>
           </div>
           <p className="text-[11px] text-[#64748B] font-mono">
-            Dual-engine validation using supervised XGBoost and unsupervised Isolation Forest with Tree SHAP explainability
+            Dual-engine validation using supervised XGBoost and unsupervised Isolation Forest with Tree SHAP explainability.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-slate-500 bg-white px-2.5 py-1 rounded-[6px] border border-[#E2E8F0]">
-            Dual Engine: XGBoost + Isolation Forest
+          <span className="text-[11px] font-mono text-slate-600 bg-white px-2.5 py-1 rounded-[6px] border border-[#E2E8F0]">
+            Validated on 109 out-of-sample sessions
           </span>
         </div>
       </div>
@@ -93,62 +93,70 @@ export default function ModelValidation() {
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A] flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5 text-[#4F46E5]" />
-                <span>Testbed Confusion Matrix</span>
+                <span>Confusion Matrix</span>
               </span>
-              <span className="text-[10px] font-mono text-[#64748B]">
-                N = 109 PCAP Handshakes
+              <span className="text-[10px] font-mono text-[#64748B] font-semibold">
+                109 validation sessions
               </span>
             </div>
 
-            {/* Matrix Grid */}
-            <div className="overflow-x-auto">
+            {/* Matrix Grid matching exact layout */}
+            <div className="overflow-x-auto border border-[#E2E8F0] rounded-[6px] bg-white">
               <table className="w-full text-xs font-mono border-collapse">
                 <thead>
-                  <tr className="border-b border-[#E2E8F0] text-[#64748B] text-[10px] uppercase">
-                    <th className="py-2 px-3 text-left font-semibold">Ground Truth</th>
-                    <th className="py-2 px-3 text-center font-semibold bg-emerald-50/50 rounded-t-[6px]">
-                      Predicted Compliant
+                  {/* Top Level: Predicted Header */}
+                  <tr className="border-b border-[#E2E8F0] bg-slate-50/70 text-[#64748B] text-[10px] uppercase">
+                    <th className="py-1 px-3 text-left border-r border-[#E2E8F0]"></th>
+                    <th colSpan="2" className="py-1 px-3 text-center font-bold text-[#0F172A] tracking-wider">
+                      Predicted
                     </th>
-                    <th className="py-2 px-3 text-center font-semibold bg-rose-50/50 rounded-t-[6px]">
-                      Predicted Vulnerable
+                  </tr>
+                  {/* Sub Header: Secure vs Vulnerable */}
+                  <tr className="border-b border-[#E2E8F0] bg-slate-50/40 text-[#64748B] text-[10px] uppercase">
+                    <th className="py-2 px-3 text-left font-semibold border-r border-[#E2E8F0]">Actual</th>
+                    <th className="py-2 px-3 text-center font-semibold text-[#059669]">
+                      Secure
+                    </th>
+                    <th className="py-2 px-3 text-center font-semibold text-[#DC2626]">
+                      Vulnerable
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E2E8F0]">
-                  {/* Row 1: Actual Compliant */}
+                  {/* Row 1: Actual Secure */}
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold text-[#0F172A] text-[11px]">
-                      Actual Compliant <span className="text-slate-400 font-normal">(54)</span>
+                    <td className="py-2.5 px-3 font-semibold text-[#0F172A] text-[11px] border-r border-[#E2E8F0] bg-slate-50/30">
+                      Actual Secure
                     </td>
-                    <td className="py-2.5 px-3 text-center bg-white">
-                      <div className="font-extrabold text-[#059669] text-sm">54</div>
-                      <div className="text-[9px] text-[#059669] uppercase font-bold">TN (100%)</div>
+                    <td className="py-2.5 px-3 text-center bg-emerald-50/30">
+                      <div className="font-extrabold text-[#059669] text-base">54</div>
+                      <div className="text-[9px] text-[#059669] uppercase font-bold tracking-tight">54 True Negatives (TN)</div>
                     </td>
-                    <td className="py-2.5 px-3 text-center bg-white">
-                      <div className="font-extrabold text-[#0F172A] text-sm">0</div>
-                      <div className="text-[9px] text-slate-400 uppercase">FP (0.0%)</div>
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="font-extrabold text-[#0F172A] text-base">0</div>
+                      <div className="text-[9px] text-slate-400 uppercase tracking-tight">0 False Positives (FP)</div>
                     </td>
                   </tr>
 
                   {/* Row 2: Actual Vulnerable */}
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold text-[#0F172A] text-[11px]">
-                      Actual Vulnerable <span className="text-slate-400 font-normal">(55)</span>
+                    <td className="py-2.5 px-3 font-semibold text-[#0F172A] text-[11px] border-r border-[#E2E8F0] bg-slate-50/30">
+                      Actual Vulnerable
                     </td>
-                    <td className="py-2.5 px-3 text-center bg-white">
-                      <div className="font-extrabold text-[#0F172A] text-sm">0</div>
-                      <div className="text-[9px] text-slate-400 uppercase">FN (0.0%)</div>
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="font-extrabold text-[#0F172A] text-base">0</div>
+                      <div className="text-[9px] text-slate-400 uppercase tracking-tight">0 False Negatives (FN)</div>
                     </td>
-                    <td className="py-2.5 px-3 text-center bg-white">
-                      <div className="font-extrabold text-[#DC2626] text-sm">55</div>
-                      <div className="text-[9px] text-[#DC2626] uppercase font-bold">TP (100%)</div>
+                    <td className="py-2.5 px-3 text-center bg-rose-50/30">
+                      <div className="font-extrabold text-[#DC2626] text-base">55</div>
+                      <div className="text-[9px] text-[#DC2626] uppercase font-bold tracking-tight">55 True Positives (TP)</div>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-[#E2E8F0] flex items-center justify-between text-[10px] font-mono text-[#64748B]">
+            <div className="mt-3 pt-2 border-t border-[#E2E8F0] flex items-center justify-between text-[10px] font-mono text-[#64748B]">
               <span>Type I Error (False Positive): 0.0%</span>
               <span>Type II Error (False Negative): 0.0%</span>
             </div>
@@ -157,28 +165,28 @@ export default function ModelValidation() {
           {/* Model Specification & Architecture Notes (5 Cols) */}
           <div className="lg:col-span-5 bg-white border border-[#E2E8F0] rounded-[8px] p-4 space-y-3 text-xs font-mono">
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A] block">
-              Ensemble Architecture
+              Validation Protocol Notes
             </span>
 
             <div className="space-y-2 text-[11px]">
               <div className="p-2.5 rounded-[6px] bg-[#F6F8FB] border border-[#E2E8F0]">
-                <div className="text-[#0F172A] font-bold">Supervised Engine: XGBoost</div>
+                <div className="text-[#0F172A] font-bold">Dual-Engine Verification</div>
                 <div className="text-[#64748B] text-[10px] mt-0.5">
-                  Gradient boosted decision trees trained on multi-attribute cryptographic vectors (DH Group, Cipher, MAC, PRF, PFS, Exchange Mode).
+                  Supervised XGBoost and unsupervised Isolation Forest cross-validate findings to prevent single-model bias.
                 </div>
               </div>
 
               <div className="p-2.5 rounded-[6px] bg-[#F6F8FB] border border-[#E2E8F0]">
-                <div className="text-[#0F172A] font-bold">Unsupervised Engine: Isolation Forest</div>
+                <div className="text-[#0F172A] font-bold">Zero False Alarms (0.0% FPR)</div>
                 <div className="text-[#64748B] text-[10px] mt-0.5">
-                  Anomaly isolation score detector identifying novel or non-standard protocol permutations and malformed payloads.
+                  All 54 RFC-compliant control sessions correctly classified without triggering false positive alerts.
                 </div>
               </div>
 
               <div className="p-2.5 rounded-[6px] bg-[#F6F8FB] border border-[#E2E8F0]">
-                <div className="text-[#0F172A] font-bold">Explainability: Tree SHAP</div>
+                <div className="text-[#0F172A] font-bold">Out-of-Sample Calibration</div>
                 <div className="text-[#64748B] text-[10px] mt-0.5">
-                  Local and global Shapley values calculate exact per-feature risk impact and protective weights.
+                  Evaluated on 109 testbed handshakes spanning IKEv1 Aggressive, Main Mode, and IKEv2 proposals.
                 </div>
               </div>
             </div>

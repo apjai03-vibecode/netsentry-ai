@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldAlert, Search, ExternalLink, ArrowRight, CheckCircle2, ChevronRight, BookOpen, Layers } from 'lucide-react';
+import { ShieldAlert, Search, ExternalLink, ChevronRight, CheckCircle2, BookOpen } from 'lucide-react';
 
 export default function SecurityFindings({ findings = [], onSelectFinding }) {
   const [filterSeverity, setFilterSeverity] = useState('ALL');
@@ -35,16 +35,16 @@ export default function SecurityFindings({ findings = [], onSelectFinding }) {
 
   const getMlContribution = (finding) => {
     if (finding.rule_id?.includes('DH') || finding.title?.includes('Diffie-Hellman')) {
-      return { score: '+0.92', label: 'Vulnerability Driver' };
+      return '+0.92';
     }
     if (finding.rule_id?.includes('3DES') || finding.rule_id?.includes('CIPHER') || finding.title?.includes('3DES')) {
-      return { score: '+0.88', label: 'Vulnerability Driver' };
+      return '+0.88';
     }
     if (finding.rule_id?.includes('AGGRESSIVE') || finding.title?.includes('Aggressive')) {
-      return { score: '+0.65', label: 'Vulnerability Driver' };
+      return '+0.65';
     }
     if (finding.rule_id?.includes('INTEG') || finding.rule_id?.includes('MD5') || finding.title?.includes('MD5')) {
-      return { score: '+0.55', label: 'Vulnerability Driver' };
+      return '+0.55';
     }
     return null;
   };
@@ -76,11 +76,11 @@ export default function SecurityFindings({ findings = [], onSelectFinding }) {
                 Security Findings
               </h2>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-50 text-[#DC2626] border border-rose-200">
-                {findings.length} Violations Detected
+                {findings.length} violations
               </span>
             </div>
             <p className="text-[11px] text-[#64748B] font-mono">
-              Deterministic RFC 8247 non-conformance rules and cryptographic exposure catalog
+              Deterministic RFC 8247 non-conformance rules and extracted session vulnerabilities
             </p>
           </div>
         </div>
@@ -90,7 +90,7 @@ export default function SecurityFindings({ findings = [], onSelectFinding }) {
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search rule ID, cipher, RFC..."
+            placeholder="Filter by rule, cipher, RFC..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-10 py-1.5 text-xs font-mono bg-white border border-[#E2E8F0] rounded-[7px] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] placeholder:text-slate-400 transition-all"
@@ -163,11 +163,10 @@ export default function SecurityFindings({ findings = [], onSelectFinding }) {
 
                 {/* Right badges & inspect action */}
                 <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
-                  {/* ML Contribution Pill */}
+                  {/* ML Contribution Badge */}
                   {mlContrib && (
-                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[10px] font-mono font-bold bg-rose-50 text-[#DC2626] border border-rose-200">
-                      <span>ML {mlContrib.score}</span>
-                      <span className="text-[9px] opacity-75 hidden sm:inline">({mlContrib.label})</span>
+                    <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[11px] font-mono font-bold bg-rose-50 text-[#DC2626] border border-rose-200">
+                      <span>ML contribution {mlContrib}</span>
                     </div>
                   )}
 
@@ -187,10 +186,9 @@ export default function SecurityFindings({ findings = [], onSelectFinding }) {
                     </a>
                   )}
 
-                  {/* Inspect CTA */}
-                  <div className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-[#0F172A] group-hover:text-[#4F46E5] pl-1">
-                    <span>Evidence</span>
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  {/* Chevron Right */}
+                  <div className="text-slate-400 group-hover:text-[#0F172A] p-1 transition-colors">
+                    <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </div>
 

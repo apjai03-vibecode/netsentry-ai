@@ -19,14 +19,14 @@ import {
   Download, 
   FileJson, 
   Loader2, 
-  ShieldAlert, 
-  ShieldCheck, 
-  FileText, 
-  CheckCircle2, 
-  AlertTriangle,
-  UploadCloud,
-  ChevronRight,
-  ExternalLink
+  UploadCloud, 
+  Menu, 
+  User, 
+  Settings, 
+  Sliders, 
+  Lock, 
+  Check, 
+  ShieldCheck 
 } from 'lucide-react';
 
 function DashboardContent() {
@@ -34,6 +34,7 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState('audit');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [showIngestBar, setShowIngestBar] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [currentJob, setCurrentJob] = useState(null);
   const [assessment, setAssessment] = useState(null);
@@ -124,7 +125,7 @@ function DashboardContent() {
   useEffect(() => {
     if (!assessment) {
       setAssessment({
-        upload_id: 'demo-sample-audit-sih26160',
+        upload_id: '88e5cdb6-sample-audit',
         overall_score: 85.0,
         risk_level: 'CRITICAL',
         executive_summary:
@@ -226,37 +227,37 @@ crypto ipsec profile NETSENTRY_PROFILE
           id: 1,
           rule_id: 'IKE-CRYPTO-WEAK-DH-2',
           category: 'Cryptography',
-          severity: 'HIGH',
+          severity: 'CRITICAL',
           title: 'Weak Diffie-Hellman Group 2 (1024-bit MODP) Negotiated',
           description:
-            'Diffie-Hellman Group 2 uses a 1024-bit prime modulus which is susceptible to precomputation attacks (Logjam) and deprecated by RFC 8247 §2.4.',
+            'Group 1/2/5 detected. Diffie-Hellman Group 2 uses a 1024-bit prime modulus susceptible to discrete log precomputation attacks (Logjam). Prohibited by RFC 8247 §2.4.',
           rfc_reference: 'RFC 8247 Section 2.4',
-          remediation_hint: 'Upgrade proposal to MODP 2048 (Group 14) or Curve25519 (Group 31).',
-          evidence_json: JSON.stringify({ dh_group_num: 2, dh_group_name: 'Group 2 (1024-bit MODP)' }, null, 2),
+          remediation_hint: 'Upgrade proposal to MODP 2048 (Group 14) or ECP 256 (Group 19).',
+          evidence_json: JSON.stringify({ dh_group_num: 2, dh_group_name: 'Group 2 (1024-bit MODP)', cipher: '3DES-CBC', ike_version: 1 }, null, 2),
         },
         {
           id: 2,
           rule_id: 'IKE-CRYPTO-DEPRECATED-CIPHER-3DES',
           category: 'Cryptography',
           severity: 'HIGH',
-          title: 'Deprecated 3DES-CBC Encryption Cipher',
+          title: 'Deprecated 3DES / DES Cipher Detected',
           description:
-            'Triple-DES uses a 64-bit block size vulnerable to Sweet32 birthday collision attacks after transferring high-volume traffic. Prohibited by RFC 8221 §5.',
+            '3DES / DES detected. Triple-DES uses a 64-bit block size vulnerable to Sweet32 birthday collision attacks after transferring high-volume traffic. Prohibited by RFC 8221 §5.',
           rfc_reference: 'RFC 8221 Section 5',
           remediation_hint: 'Enforce AEAD AES-GCM-256 encryption proposals.',
-          evidence_json: JSON.stringify({ cipher: '3DES-CBC', block_size_bits: 64 }, null, 2),
+          evidence_json: JSON.stringify({ cipher: '3DES-CBC', block_size_bits: 64, ike_version: 1 }, null, 2),
         },
         {
           id: 3,
           rule_id: 'IKE-FLOW-AGGRESSIVE-MODE-PSK',
-          category: 'Protocol Flow',
-          severity: 'CRITICAL',
-          title: 'IKEv1 Aggressive Mode Pre-Shared Key Hash Exposed in Cleartext',
+          category: 'Protocol Architecture',
+          severity: 'HIGH',
+          title: 'IKEv1 Legacy Protocol Negotiation Detected',
           description:
-            'IKEv1 Aggressive Mode transmits initiator ID and hash payloads in the first packet prior to DH key exchange, allowing offline cracking.',
+            'Legacy protocol negotiation detected. IKEv1 transmits initiator ID and hash payloads in the first packet prior to DH key exchange, exposing pre-shared keys to offline dictionary cracking.',
           rfc_reference: 'RFC 2409 Section 5.4',
           remediation_hint: 'Migrate to IKEv2 Main Mode with mutual certificates or asymmetric authentication.',
-          evidence_json: JSON.stringify({ exchange_type: 'Aggressive Mode', ike_version: 1 }, null, 2),
+          evidence_json: JSON.stringify({ exchange_type: 'Aggressive Mode', ike_version: 1, auth_method: 'Pre-Shared Key' }, null, 2),
         },
       ]);
     }
@@ -271,32 +272,67 @@ crypto ipsec profile NETSENTRY_PROFILE
         setActiveTab={setActiveTab}
         onOpenAuth={() => setAuthModalOpen(true)}
         findingsCount={findings.length}
+        isMobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
       {/* Main Operational Stage */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
-        {/* Top Control Bar */}
-        <header className="h-14 bg-white border-b border-[#E2E8F0] px-6 flex items-center justify-between shrink-0 sticky top-0 z-20">
-          <div className="flex items-center gap-2 text-xs font-mono text-[#64748B]">
-            <span className="font-semibold text-[#0F172A]">NetSentry Security Center</span>
-            <span>/</span>
-            <span className="capitalize">{activeTab}</span>
+        {/* Top Contextual Navigation Bar */}
+        <header className="h-14 bg-white border-b border-[#E2E8F0] px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            {/* Mobile Hamburger */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="p-1.5 rounded-[7px] text-[#64748B] hover:bg-slate-100 lg:hidden cursor-pointer"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2 text-xs font-mono text-[#64748B]">
+              <span className="font-semibold text-[#0F172A]">NetSentry Security Center</span>
+              <span>/</span>
+              <span className="capitalize">{activeTab === 'audit' ? 'Audits' : activeTab}</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Subtle Engine Active Indicator */}
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-[#059669] text-xs font-mono font-medium border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse" />
+              <span>Engine Active (RFC 8247)</span>
+            </div>
+
+            {/* Quick Ingest Button */}
             <button
               onClick={() => setShowIngestBar(!showIngestBar)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-medium text-[#0F172A] bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-medium text-[#0F172A] bg-slate-100 hover:bg-slate-200 border border-[#E2E8F0] transition-colors cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5 text-[#4F46E5]" />
-              <span>{showIngestBar ? 'Hide Ingest Bar' : 'Quick Ingest'}</span>
+              <span>{showIngestBar ? 'Close Ingest' : 'Quick Ingest'}</span>
             </button>
 
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] bg-emerald-50 text-[#059669] text-[10px] font-mono font-semibold border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse" />
-              <span>SOC Agent Ready</span>
-            </div>
+            {/* User / Admin Compact Control */}
+            {user ? (
+              <div className="flex items-center gap-2 pl-1">
+                <div className="w-7 h-7 rounded-[6px] bg-[#0F172A] text-white flex items-center justify-center text-xs font-mono font-bold">
+                  {user.username.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs font-mono text-[#0F172A] hidden md:inline font-semibold">
+                  {user.username}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-medium bg-[#0F172A] text-white hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -314,12 +350,12 @@ crypto ipsec profile NETSENTRY_PROFILE
         )}
 
         {/* Content Container */}
-        <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6 pb-12">
+        <main className="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6 pb-12">
           
           {/* 1. Main Audit Dashboard */}
           {(activeTab === 'audit' || activeTab === 'dashboard') && (
             <>
-              {/* Audit Context & Metadata Header */}
+              {/* AUDIT CONTEXT */}
               <AuditHeader
                 assessment={assessment}
                 findingsCount={findings.length}
@@ -341,40 +377,41 @@ crypto ipsec profile NETSENTRY_PROFILE
               ) : (
                 assessment && (
                   <div className="space-y-6">
-                    {/* Security Posture */}
+                    {/* SECURITY POSTURE */}
                     <SecurityPosture
                       assessment={assessment}
                       findings={findings}
                     />
 
-                    {/* Security Findings */}
+                    {/* SECURITY FINDINGS */}
                     <SecurityFindings
                       findings={findings}
                       onSelectFinding={handleSelectFinding}
                     />
 
-                    {/* Handshake Sequence & State Inspector */}
+                    {/* PROTOCOL FLOW & PACKET DISSECTOR */}
                     <SessionInspector
                       assessment={assessment}
                       findings={findings}
                     />
 
-                    {/* Remediation Diffs */}
+                    {/* CONFIG REMEDIATION DIFFS */}
                     <RemediationDiff
                       assessment={assessment}
                     />
 
-                    {/* Model Validation */}
+                    {/* MODEL VALIDATION */}
                     <ModelValidation />
 
-                    {/* Model Explanation */}
+                    {/* MODEL EXPLANATION */}
                     <ModelExplanation
                       assessment={assessment}
                     />
 
-                    {/* Engine Telemetry */}
+                    {/* TECHNICAL TELEMETRY */}
                     <EngineTelemetry
                       assessment={assessment}
+                      sessions={sessions}
                     />
                   </div>
                 )
@@ -440,7 +477,7 @@ crypto ipsec profile NETSENTRY_PROFILE
             </div>
           )}
 
-          {/* 7. Dedicated Audit Reports Tab */}
+          {/* 7. Dedicated Reports Tab */}
           {activeTab === 'reports' && (
             <div className="space-y-6">
               <div className="bg-white rounded-[10px] border border-[#E2E8F0] p-6 shadow-2xs space-y-4">
@@ -478,7 +515,7 @@ crypto ipsec profile NETSENTRY_PROFILE
                   </div>
                 </div>
 
-                {/* Executive Summary Block */}
+                {/* Executive Summary Statement */}
                 <div className="p-4 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] space-y-2">
                   <span className="text-[10px] uppercase font-mono font-bold text-[#64748B] block">
                     Executive Summary Statement
@@ -508,6 +545,65 @@ crypto ipsec profile NETSENTRY_PROFILE
                     <span className="text-[10px] text-[#64748B] block">Engine Conformance</span>
                     <span className="text-sm font-extrabold text-[#059669] mt-0.5 block">
                       RFC 8247 Certified
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 8. Dedicated Settings Tab */}
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-[10px] border border-[#E2E8F0] p-6 shadow-2xs space-y-5 font-mono text-xs">
+                <div className="border-b border-[#E2E8F0] pb-3 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">
+                      SOC Engine & Audit Policies
+                    </h2>
+                    <p className="text-xs text-[#64748B] font-mono mt-0.5">
+                      Operational runtime flags and RFC compliance thresholds
+                    </p>
+                  </div>
+                  <span className="px-2 py-0.5 bg-emerald-50 text-[#059669] border border-emerald-200 rounded-[5px] text-[10px] font-bold">
+                    Active Engine (Port 8000)
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-between">
+                    <div>
+                      <span className="text-[#0F172A] font-bold block">Enforce RFC 8247 Baseline</span>
+                      <span className="text-[11px] text-[#64748B] block mt-0.5">
+                        Prohibit Diffie-Hellman groups below 2048-bit (MODP-1024, MODP-768)
+                      </span>
+                    </div>
+                    <span className="px-2 py-1 bg-emerald-50 text-[#059669] border border-emerald-200 rounded-[6px] text-[11px] font-bold">
+                      ENFORCED
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-between">
+                    <div>
+                      <span className="text-[#0F172A] font-bold block">Enforce RFC 8221 ESP Ciphers</span>
+                      <span className="text-[11px] text-[#64748B] block mt-0.5">
+                        Prohibit legacy 64-bit block ciphers (3DES-CBC, DES) to prevent Sweet32 attacks
+                      </span>
+                    </div>
+                    <span className="px-2 py-1 bg-emerald-50 text-[#059669] border border-emerald-200 rounded-[6px] text-[11px] font-bold">
+                      ENFORCED
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-between">
+                    <div>
+                      <span className="text-[#0F172A] font-bold block">Tree SHAP Feature Attribution</span>
+                      <span className="text-[11px] text-[#64748B] block mt-0.5">
+                        Polynomial-time Shapley calculation on supervised XGBoost risk classification
+                      </span>
+                    </div>
+                    <span className="px-2 py-1 bg-indigo-50 text-[#4F46E5] border border-indigo-200 rounded-[6px] text-[11px] font-bold">
+                      ENABLED
                     </span>
                   </div>
                 </div>
