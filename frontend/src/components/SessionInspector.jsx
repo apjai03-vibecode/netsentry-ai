@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, ShieldAlert, ShieldCheck, Cpu, Terminal, ChevronDown, ChevronUp, Layers, Hash } from 'lucide-react';
+import { Layers } from 'lucide-react';
 
 export default function SessionInspector({ assessment, findings = [] }) {
   const [selectedPacket, setSelectedPacket] = useState(0);
@@ -64,17 +64,17 @@ export default function SessionInspector({ assessment, findings = [] }) {
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+    <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 shadow-2xs overflow-hidden transition-colors">
       
       {/* Header */}
-      <div className="px-5 py-3 border-b border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="px-5 py-3.5 border-b border-[#E2E8F0] dark:border-slate-800 bg-[#F6F8FB]/80 dark:bg-[#0F172A]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-indigo-600" />
-          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-800">
+          <Layers className="w-4 h-4 text-[#4F46E5] dark:text-indigo-400" />
+          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A] dark:text-[#F8FAFC]">
             Handshake State & Packet Sequence Inspector
           </h3>
         </div>
-        <span className="text-[11px] font-mono text-slate-500">
+        <span className="text-[11px] font-mono text-[#64748B] dark:text-slate-400">
           Stateful FSM Engine • 4 Packets Dissected
         </span>
       </div>
@@ -86,31 +86,31 @@ export default function SessionInspector({ assessment, findings = [] }) {
             <button
               key={pkt.seq}
               onClick={() => setSelectedPacket(idx)}
-              className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+              className={`p-2.5 rounded-[8px] border text-left transition-all cursor-pointer ${
                 selectedPacket === idx
-                  ? 'border-indigo-600 bg-indigo-50/50 shadow-xs'
-                  : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
+                  ? 'border-[#4F46E5] dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-2xs'
+                  : 'border-[#E2E8F0] dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-[#161E2E]'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                   #{pkt.seq}
                 </span>
                 <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded ${
                   pkt.status === 'danger'
-                    ? 'bg-rose-100 text-rose-800'
+                    ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-400'
                     : pkt.status === 'warning'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-emerald-100 text-emerald-800'
+                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400'
+                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400'
                 }`}>
                   {pkt.status === 'danger' ? 'VULN' : pkt.status === 'warning' ? 'WEAK' : 'SECURE'}
                 </span>
               </div>
 
-              <div className="mt-1.5 text-xs font-semibold text-slate-900 truncate">
+              <div className="mt-1.5 text-xs font-semibold text-[#0F172A] dark:text-white truncate">
                 {pkt.exchange.split('/')[0]}
               </div>
-              <div className="text-[10px] font-mono text-slate-500 mt-0.5 truncate">
+              <div className="text-[10px] font-mono text-[#64748B] dark:text-slate-400 mt-0.5 truncate">
                 {pkt.direction}
               </div>
             </button>
@@ -119,38 +119,38 @@ export default function SessionInspector({ assessment, findings = [] }) {
 
         {/* Selected Packet Inspection Details */}
         {packets[selectedPacket] && (
-          <div className="p-4 rounded-lg bg-slate-50 border border-slate-200/90 text-xs font-mono">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-slate-200/80">
+          <div className="p-4 rounded-[8px] bg-[#F6F8FB] dark:bg-[#161E2E] border border-[#E2E8F0] dark:border-slate-800 text-xs font-mono transition-colors">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-3 border-b border-[#E2E8F0] dark:border-slate-700/60">
               <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Exchange Flow</span>
-                <span className="font-semibold text-slate-900">{packets[selectedPacket].direction}</span>
+                <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block">Exchange Flow</span>
+                <span className="font-semibold text-[#0F172A] dark:text-white">{packets[selectedPacket].direction}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Network Endpoints</span>
-                <span className="text-slate-800">{packets[selectedPacket].src} ➔ {packets[selectedPacket].dst}</span>
+                <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block">Network Endpoints</span>
+                <span className="text-slate-800 dark:text-slate-200">{packets[selectedPacket].src} ➔ {packets[selectedPacket].dst}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Message ID / Flags</span>
-                <span className="text-slate-800">{packets[selectedPacket].msgId} ({packets[selectedPacket].flags})</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-3 border-b border-slate-200/80">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Initiator SPI</span>
-                <span className="text-slate-700 break-all">{packets[selectedPacket].spi_i}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Responder SPI</span>
-                <span className="text-slate-700 break-all">{packets[selectedPacket].spi_r}</span>
+                <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block">Message ID / Flags</span>
+                <span className="text-slate-800 dark:text-slate-200">{packets[selectedPacket].msgId} ({packets[selectedPacket].flags})</span>
               </div>
             </div>
 
-            <div className="py-3 border-b border-slate-200/80">
-              <span className="text-[10px] text-slate-400 uppercase block mb-1.5">Parsed Payloads & Transforms</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-3 border-b border-[#E2E8F0] dark:border-slate-700/60">
+              <div>
+                <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block">Initiator SPI</span>
+                <span className="text-slate-700 dark:text-slate-300 break-all">{packets[selectedPacket].spi_i}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block">Responder SPI</span>
+                <span className="text-slate-700 dark:text-slate-300 break-all">{packets[selectedPacket].spi_r}</span>
+              </div>
+            </div>
+
+            <div className="py-3 border-b border-[#E2E8F0] dark:border-slate-700/60">
+              <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block mb-1.5">Parsed Payloads & Transforms</span>
               <div className="flex flex-wrap gap-1.5">
                 {packets[selectedPacket].payloads.map((payload, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800 text-[11px]">
+                  <span key={i} className="px-2 py-0.5 rounded bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-700 text-slate-800 dark:text-slate-200 text-[11px]">
                     {payload}
                   </span>
                 ))}
@@ -158,8 +158,8 @@ export default function SessionInspector({ assessment, findings = [] }) {
             </div>
 
             <div className="pt-3">
-              <span className="text-[10px] text-slate-400 uppercase block mb-1">State Machine Protocol Telemetry</span>
-              <p className="text-slate-700 text-[11px] leading-relaxed font-sans">
+              <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block mb-1">State Machine Protocol Telemetry</span>
+              <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed font-sans">
                 {packets[selectedPacket].notes}
               </p>
             </div>

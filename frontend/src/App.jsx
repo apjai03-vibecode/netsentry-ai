@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import ThemeToggle from './components/ThemeToggle';
 import Sidebar from './components/Sidebar';
 import AuditHeader from './components/AuditHeader';
 import SecurityPosture from './components/SecurityPosture';
@@ -22,15 +24,15 @@ import {
   UploadCloud, 
   Menu, 
   User, 
-  Settings, 
-  Sliders, 
-  Lock, 
-  Check, 
-  ShieldCheck 
+  Palette,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
 
 function DashboardContent() {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('audit');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [showIngestBar, setShowIngestBar] = useState(false);
@@ -264,7 +266,7 @@ crypto ipsec profile NETSENTRY_PROFILE
   }, [assessment]);
 
   return (
-    <div className="min-h-screen bg-[#F6F8FB] text-[#0F172A] flex font-sans antialiased">
+    <div className="min-h-screen bg-[#F6F8FB] dark:bg-[#0B0F19] text-[#0F172A] dark:text-[#F8FAFC] flex font-sans antialiased transition-colors">
       
       {/* Left Navigation Sidebar */}
       <Sidebar
@@ -280,54 +282,57 @@ crypto ipsec profile NETSENTRY_PROFILE
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
         {/* Top Contextual Navigation Bar */}
-        <header className="h-14 bg-white border-b border-[#E2E8F0] px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-20">
+        <header className="h-14 bg-white dark:bg-[#111827] border-b border-[#E2E8F0] dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-20 transition-colors">
           <div className="flex items-center gap-3">
             {/* Mobile Hamburger */}
             <button
               onClick={() => setMobileSidebarOpen(true)}
-              className="p-1.5 rounded-[7px] text-[#64748B] hover:bg-slate-100 lg:hidden cursor-pointer"
+              className="p-1.5 rounded-[7px] text-[#64748B] dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden cursor-pointer"
               title="Open Navigation Menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-2 text-xs font-mono text-[#64748B]">
-              <span className="font-semibold text-[#0F172A]">NetSentry Security Center</span>
+            <div className="flex items-center gap-2 text-xs font-mono text-[#64748B] dark:text-slate-400">
+              <span className="font-semibold text-[#0F172A] dark:text-white">NetSentry Security Center</span>
               <span>/</span>
               <span className="capitalize">{activeTab === 'audit' ? 'Audits' : activeTab}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {/* Subtle Engine Active Indicator */}
-            <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-[#059669] text-xs font-mono font-medium border border-emerald-200">
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 text-xs font-mono font-medium border border-emerald-200 dark:border-emerald-900/50">
               <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse" />
               <span>Engine Active (RFC 8247)</span>
             </div>
 
+            {/* Dark / Light Theme Toggle */}
+            <ThemeToggle />
+
             {/* Quick Ingest Button */}
             <button
               onClick={() => setShowIngestBar(!showIngestBar)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-medium text-[#0F172A] bg-slate-100 hover:bg-slate-200 border border-[#E2E8F0] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-medium text-[#0F172A] dark:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-[#E2E8F0] dark:border-slate-700 transition-colors cursor-pointer"
             >
-              <UploadCloud className="w-3.5 h-3.5 text-[#4F46E5]" />
+              <UploadCloud className="w-3.5 h-3.5 text-[#4F46E5] dark:text-indigo-400" />
               <span>{showIngestBar ? 'Close Ingest' : 'Quick Ingest'}</span>
             </button>
 
             {/* User / Admin Compact Control */}
             {user ? (
               <div className="flex items-center gap-2 pl-1">
-                <div className="w-7 h-7 rounded-[6px] bg-[#0F172A] text-white flex items-center justify-center text-xs font-mono font-bold">
+                <div className="w-7 h-7 rounded-[6px] bg-[#0F172A] dark:bg-slate-700 text-white flex items-center justify-center text-xs font-mono font-bold">
                   {user.username.charAt(0).toUpperCase()}
                 </div>
-                <span className="text-xs font-mono text-[#0F172A] hidden md:inline font-semibold">
+                <span className="text-xs font-mono text-[#0F172A] dark:text-white hidden md:inline font-semibold">
                   {user.username}
                 </span>
               </div>
             ) : (
               <button
                 onClick={() => setAuthModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-medium bg-[#0F172A] text-white hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-medium bg-[#0F172A] dark:bg-indigo-600 text-white hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors cursor-pointer shadow-2xs"
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Sign In</span>
@@ -338,7 +343,7 @@ crypto ipsec profile NETSENTRY_PROFILE
 
         {/* Collapsible Quick Ingest Bar */}
         {showIngestBar && (
-          <div className="p-6 bg-slate-50 border-b border-[#E2E8F0]">
+          <div className="p-6 bg-slate-50 dark:bg-[#0F172A] border-b border-[#E2E8F0] dark:border-slate-800 transition-colors">
             <div className="max-w-5xl mx-auto">
               <UploadZone
                 onJobStarted={(job) => setCurrentJob(job)}
@@ -365,12 +370,12 @@ crypto ipsec profile NETSENTRY_PROFILE
               />
 
               {loadingAssessment ? (
-                <div className="bg-white rounded-[10px] border border-[#E2E8F0] p-12 text-center flex flex-col items-center justify-center shadow-2xs">
+                <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 p-12 text-center flex flex-col items-center justify-center shadow-2xs transition-colors">
                   <Loader2 className="w-8 h-8 text-[#4F46E5] animate-spin mb-3" />
-                  <span className="text-xs font-mono font-semibold text-[#0F172A]">
+                  <span className="text-xs font-mono font-semibold text-[#0F172A] dark:text-white">
                     Executing Triple-Engine Audit Pipeline...
                   </span>
-                  <span className="text-[11px] font-mono text-[#64748B] mt-1">
+                  <span className="text-[11px] font-mono text-[#64748B] dark:text-slate-400 mt-1">
                     RFC 8247 Rule Matcher • Stateful FSM State Machine • XGBoost & Tree SHAP Inference
                   </span>
                 </div>
@@ -422,11 +427,11 @@ crypto ipsec profile NETSENTRY_PROFILE
           {/* 2. Dedicated Capture Ingest Tab */}
           {activeTab === 'captures' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-[10px] border border-[#E2E8F0] p-5 shadow-2xs">
-                <h2 className="text-sm font-bold font-mono text-[#0F172A] uppercase tracking-wider mb-1">
+              <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 p-5 shadow-2xs transition-colors">
+                <h2 className="text-sm font-bold font-mono text-[#0F172A] dark:text-white uppercase tracking-wider mb-1">
                   Network Capture Ingestion & Dissection Engine
                 </h2>
-                <p className="text-xs text-[#64748B] font-mono">
+                <p className="text-xs text-[#64748B] dark:text-slate-400 font-mono">
                   Upload raw .pcap or .pcapng captures for automated Scapy 28-byte unpadded header parsing and cryptographic verification.
                 </p>
               </div>
@@ -480,13 +485,13 @@ crypto ipsec profile NETSENTRY_PROFILE
           {/* 7. Dedicated Reports Tab */}
           {activeTab === 'reports' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-[10px] border border-[#E2E8F0] p-6 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-4">
+              <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-2xs space-y-4 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] dark:border-slate-800 pb-4">
                   <div>
-                    <h2 className="text-sm font-bold font-mono text-[#0F172A] uppercase tracking-wider">
+                    <h2 className="text-sm font-bold font-mono text-[#0F172A] dark:text-white uppercase tracking-wider">
                       Audit Certification & Executive Export
                     </h2>
-                    <p className="text-xs text-[#64748B] font-mono mt-0.5">
+                    <p className="text-xs text-[#64748B] dark:text-slate-400 font-mono mt-0.5">
                       Formal assessment report compliant with IETF RFC 8247 & RFC 8221 specifications
                     </p>
                   </div>
@@ -494,16 +499,16 @@ crypto ipsec profile NETSENTRY_PROFILE
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleDownloadJson}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-white text-[#0F172A] border border-[#E2E8F0] hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-white dark:bg-[#161E2E] text-[#0F172A] dark:text-white border border-[#E2E8F0] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
                     >
-                      <FileJson className="w-3.5 h-3.5 text-[#64748B]" />
+                      <FileJson className="w-3.5 h-3.5 text-[#64748B] dark:text-slate-400" />
                       <span>Download JSON Evidence</span>
                     </button>
 
                     <button
                       onClick={handleDownloadPdf}
                       disabled={downloadingPdf}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-[#0F172A] hover:bg-slate-800 text-white transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-[#0F172A] dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
                     >
                       {downloadingPdf ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -516,34 +521,34 @@ crypto ipsec profile NETSENTRY_PROFILE
                 </div>
 
                 {/* Executive Summary Statement */}
-                <div className="p-4 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] space-y-2">
-                  <span className="text-[10px] uppercase font-mono font-bold text-[#64748B] block">
+                <div className="p-4 rounded-[8px] bg-[#F6F8FB] dark:bg-[#161E2E] border border-[#E2E8F0] dark:border-slate-800 space-y-2 transition-colors">
+                  <span className="text-[10px] uppercase font-mono font-bold text-[#64748B] dark:text-slate-400 block">
                     Executive Summary Statement
                   </span>
-                  <p className="text-xs text-[#0F172A] font-sans leading-relaxed">
+                  <p className="text-xs text-[#0F172A] dark:text-slate-200 font-sans leading-relaxed">
                     {assessment?.executive_summary}
                   </p>
                 </div>
 
                 {/* Sign-Off Checklist */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono pt-2">
-                  <div className="p-3 bg-white border border-[#E2E8F0] rounded-[8px]">
-                    <span className="text-[10px] text-[#64748B] block">Overall Risk Rating</span>
-                    <span className="text-sm font-extrabold text-[#DC2626] mt-0.5 block">
+                  <div className="p-3 bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-800 rounded-[8px]">
+                    <span className="text-[10px] text-[#64748B] dark:text-slate-400 block">Overall Risk Rating</span>
+                    <span className="text-sm font-extrabold text-[#DC2626] dark:text-rose-400 mt-0.5 block">
                       {assessment?.risk_level} ({assessment?.overall_score}/100)
                     </span>
                   </div>
 
-                  <div className="p-3 bg-white border border-[#E2E8F0] rounded-[8px]">
-                    <span className="text-[10px] text-[#64748B] block">Violations Count</span>
-                    <span className="text-sm font-extrabold text-[#D97706] mt-0.5 block">
+                  <div className="p-3 bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-800 rounded-[8px]">
+                    <span className="text-[10px] text-[#64748B] dark:text-slate-400 block">Violations Count</span>
+                    <span className="text-sm font-extrabold text-[#D97706] dark:text-amber-400 mt-0.5 block">
                       {findings.length} Flagged Parameters
                     </span>
                   </div>
 
-                  <div className="p-3 bg-white border border-[#E2E8F0] rounded-[8px]">
-                    <span className="text-[10px] text-[#64748B] block">Engine Conformance</span>
-                    <span className="text-sm font-extrabold text-[#059669] mt-0.5 block">
+                  <div className="p-3 bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-800 rounded-[8px]">
+                    <span className="text-[10px] text-[#64748B] dark:text-slate-400 block">Engine Conformance</span>
+                    <span className="text-sm font-extrabold text-[#059669] dark:text-emerald-400 mt-0.5 block">
                       RFC 8247 Certified
                     </span>
                   </div>
@@ -555,54 +560,134 @@ crypto ipsec profile NETSENTRY_PROFILE
           {/* 8. Dedicated Settings Tab */}
           {activeTab === 'settings' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-[10px] border border-[#E2E8F0] p-6 shadow-2xs space-y-5 font-mono text-xs">
-                <div className="border-b border-[#E2E8F0] pb-3 flex items-center justify-between">
+              {/* Theme Settings Card */}
+              <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-2xs space-y-4 font-mono text-xs transition-colors">
+                <div className="border-b border-[#E2E8F0] dark:border-slate-800 pb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-[#4F46E5] dark:text-indigo-400" />
+                    <div>
+                      <h2 className="text-sm font-bold text-[#0F172A] dark:text-white uppercase tracking-wider">
+                        Appearance & Operations Environment
+                      </h2>
+                      <p className="text-xs text-[#64748B] dark:text-slate-400 font-mono mt-0.5">
+                        Toggle between Executive Audit (Light) and SOC Night Ops (Dark) modes
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <button
+                    onClick={() => setTheme('light')}
+                    className={`p-4 rounded-[8px] border text-left transition-all cursor-pointer ${
+                      theme === 'light'
+                        ? 'border-[#4F46E5] bg-indigo-50/50 dark:bg-indigo-950/30 shadow-2xs'
+                        : 'border-[#E2E8F0] dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-[#161E2E]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Sun className="w-5 h-5 text-amber-500" />
+                      {theme === 'light' && <span className="text-[10px] font-bold text-[#4F46E5] dark:text-indigo-400">ACTIVE</span>}
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-[#0F172A] dark:text-white">
+                      Enterprise Audit
+                    </div>
+                    <div className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 font-sans">
+                      Clean daylight theme calibrated for executive briefings and projector presentations.
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setTheme('dark')}
+                    className={`p-4 rounded-[8px] border text-left transition-all cursor-pointer ${
+                      theme === 'dark'
+                        ? 'border-[#4F46E5] bg-indigo-50/50 dark:bg-indigo-950/30 shadow-2xs'
+                        : 'border-[#E2E8F0] dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-[#161E2E]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Moon className="w-5 h-5 text-indigo-400" />
+                      {theme === 'dark' && <span className="text-[10px] font-bold text-[#4F46E5] dark:text-indigo-400">ACTIVE</span>}
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-[#0F172A] dark:text-white">
+                      SOC Night Ops
+                    </div>
+                    <div className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 font-sans">
+                      Deep slate aesthetic calibrated for 24/7 dark-room SOC telemetry monitoring.
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setTheme('system')}
+                    className={`p-4 rounded-[8px] border text-left transition-all cursor-pointer ${
+                      theme === 'system'
+                        ? 'border-[#4F46E5] bg-indigo-50/50 dark:bg-indigo-950/30 shadow-2xs'
+                        : 'border-[#E2E8F0] dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-[#161E2E]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Monitor className="w-5 h-5 text-slate-500" />
+                      {theme === 'system' && <span className="text-[10px] font-bold text-[#4F46E5] dark:text-indigo-400">ACTIVE</span>}
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-[#0F172A] dark:text-white">
+                      System Preference
+                    </div>
+                    <div className="text-[11px] text-[#64748B] dark:text-slate-400 mt-0.5 font-sans">
+                      Automatically syncs with your operating system color scheme preference.
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Policy Settings Card */}
+              <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-2xs space-y-5 font-mono text-xs transition-colors">
+                <div className="border-b border-[#E2E8F0] dark:border-slate-800 pb-3 flex items-center justify-between">
                   <div>
-                    <h2 className="text-sm font-bold text-[#0F172A] uppercase tracking-wider">
+                    <h2 className="text-sm font-bold text-[#0F172A] dark:text-white uppercase tracking-wider">
                       SOC Engine & Audit Policies
                     </h2>
-                    <p className="text-xs text-[#64748B] font-mono mt-0.5">
+                    <p className="text-xs text-[#64748B] dark:text-slate-400 font-mono mt-0.5">
                       Operational runtime flags and RFC compliance thresholds
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 bg-emerald-50 text-[#059669] border border-emerald-200 rounded-[5px] text-[10px] font-bold">
+                  <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-[5px] text-[10px] font-bold">
                     Active Engine (Port 8000)
                   </span>
                 </div>
 
                 <div className="space-y-3">
-                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-between">
+                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] dark:bg-[#161E2E] border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between">
                     <div>
-                      <span className="text-[#0F172A] font-bold block">Enforce RFC 8247 Baseline</span>
-                      <span className="text-[11px] text-[#64748B] block mt-0.5">
+                      <span className="text-[#0F172A] dark:text-white font-bold block">Enforce RFC 8247 Baseline</span>
+                      <span className="text-[11px] text-[#64748B] dark:text-slate-400 block mt-0.5">
                         Prohibit Diffie-Hellman groups below 2048-bit (MODP-1024, MODP-768)
                       </span>
                     </div>
-                    <span className="px-2 py-1 bg-emerald-50 text-[#059669] border border-emerald-200 rounded-[6px] text-[11px] font-bold">
+                    <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-[6px] text-[11px] font-bold">
                       ENFORCED
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-between">
+                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] dark:bg-[#161E2E] border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between">
                     <div>
-                      <span className="text-[#0F172A] font-bold block">Enforce RFC 8221 ESP Ciphers</span>
-                      <span className="text-[11px] text-[#64748B] block mt-0.5">
+                      <span className="text-[#0F172A] dark:text-white font-bold block">Enforce RFC 8221 ESP Ciphers</span>
+                      <span className="text-[11px] text-[#64748B] dark:text-slate-400 block mt-0.5">
                         Prohibit legacy 64-bit block ciphers (3DES-CBC, DES) to prevent Sweet32 attacks
                       </span>
                     </div>
-                    <span className="px-2 py-1 bg-emerald-50 text-[#059669] border border-emerald-200 rounded-[6px] text-[11px] font-bold">
+                    <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-[6px] text-[11px] font-bold">
                       ENFORCED
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-between">
+                  <div className="p-3.5 rounded-[8px] bg-[#F6F8FB] dark:bg-[#161E2E] border border-[#E2E8F0] dark:border-slate-800 flex items-center justify-between">
                     <div>
-                      <span className="text-[#0F172A] font-bold block">Tree SHAP Feature Attribution</span>
-                      <span className="text-[11px] text-[#64748B] block mt-0.5">
+                      <span className="text-[#0F172A] dark:text-white font-bold block">Tree SHAP Feature Attribution</span>
+                      <span className="text-[11px] text-[#64748B] dark:text-slate-400 block mt-0.5">
                         Polynomial-time Shapley calculation on supervised XGBoost risk classification
                       </span>
                     </div>
-                    <span className="px-2 py-1 bg-indigo-50 text-[#4F46E5] border border-indigo-200 rounded-[6px] text-[11px] font-bold">
+                    <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-[#4F46E5] dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 rounded-[6px] text-[11px] font-bold">
                       ENABLED
                     </span>
                   </div>
@@ -633,8 +718,10 @@ crypto ipsec profile NETSENTRY_PROFILE
 
 export default function App() {
   return (
-    <AuthProvider>
-      <DashboardContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <DashboardContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

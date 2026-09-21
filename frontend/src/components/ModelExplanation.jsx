@@ -45,21 +45,21 @@ export default function ModelExplanation({ assessment }) {
   const maxAbsImpact = 1.0;
 
   return (
-    <section className="bg-white rounded-[10px] border border-[#E2E8F0] shadow-2xs overflow-hidden">
+    <section className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 shadow-2xs overflow-hidden transition-colors">
       
       {/* Header Bar */}
-      <div className="px-5 py-4 border-b border-[#E2E8F0] bg-[#F6F8FB]/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-[#E2E8F0] dark:border-slate-800 bg-[#F6F8FB]/80 dark:bg-[#0F172A]/70 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Cpu className="w-4 h-4 text-[#4F46E5]" />
-            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A]">
+            <Cpu className="w-4 h-4 text-[#4F46E5] dark:text-indigo-400" />
+            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A] dark:text-[#F8FAFC]">
               Model Explanation
             </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 text-[#4F46E5] border border-indigo-200 font-bold">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-[#4F46E5] dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 font-bold">
               Tree SHAP Feature Attribution
             </span>
           </div>
-          <p className="text-[11px] text-[#64748B] font-mono">
+          <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-mono">
             Tree SHAP feature attribution explaining model decisions.
           </p>
         </div>
@@ -68,11 +68,11 @@ export default function ModelExplanation({ assessment }) {
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs font-mono">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-[3px] bg-[#DC2626]" />
-            <span className="text-[#0F172A] font-semibold text-[11px]">Positive contribution → increases vulnerability</span>
+            <span className="text-[#0F172A] dark:text-slate-300 font-semibold text-[11px]">Positive contribution → increases vulnerability</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-[3px] bg-[#059669]" />
-            <span className="text-[#0F172A] font-semibold text-[11px]">Negative contribution → protective factor</span>
+            <span className="text-[#0F172A] dark:text-slate-300 font-semibold text-[11px]">Negative contribution → protective factor</span>
           </div>
         </div>
       </div>
@@ -88,15 +88,15 @@ export default function ModelExplanation({ assessment }) {
             return (
               <div
                 key={idx}
-                className="p-3.5 rounded-[8px] bg-[#F6F8FB] border border-[#E2E8F0] space-y-2 transition-colors hover:border-slate-300"
+                className="p-3.5 rounded-[8px] bg-[#F6F8FB] dark:bg-[#161E2E] border border-[#E2E8F0] dark:border-slate-800 space-y-2 transition-colors hover:border-slate-300 dark:hover:border-slate-700"
               >
                 {/* Title & Badge */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-mono">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#0F172A]">
+                    <span className="font-bold text-[#0F172A] dark:text-white">
                       {item.feature}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-normal">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
                       ({item.category})
                     </span>
                   </div>
@@ -105,20 +105,20 @@ export default function ModelExplanation({ assessment }) {
                     <span
                       className={`text-xs font-bold font-mono px-2 py-0.5 rounded-[4px] ${
                         isPos
-                          ? 'bg-rose-50 text-[#DC2626] border border-rose-200'
-                          : 'bg-emerald-50 text-[#059669] border border-emerald-200'
+                          ? 'bg-rose-50 dark:bg-rose-950/40 text-[#DC2626] dark:text-rose-400 border border-rose-200 dark:border-rose-900/50'
+                          : 'bg-emerald-50 dark:bg-emerald-950/40 text-[#059669] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50'
                       }`}
                     >
                       {isPos ? `+${item.impact.toFixed(2)}` : item.impact.toFixed(2)}
                     </span>
-                    <span className="text-[10px] text-[#64748B] font-medium hidden sm:inline">
+                    <span className="text-[10px] text-[#64748B] dark:text-slate-400 font-medium hidden sm:inline">
                       {isPos ? 'Increases Vulnerability' : 'Protective Factor'}
                     </span>
                   </div>
                 </div>
 
                 {/* Relative Horizontal Bar */}
-                <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-slate-200/80 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
                       isPos ? 'bg-[#DC2626]' : 'bg-[#059669]'
@@ -128,7 +128,7 @@ export default function ModelExplanation({ assessment }) {
                 </div>
 
                 {/* Technical Explanation */}
-                <p className="text-[11px] text-[#64748B] font-sans leading-tight">
+                <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-sans leading-tight">
                   {item.explanation}
                 </p>
               </div>
@@ -137,21 +137,21 @@ export default function ModelExplanation({ assessment }) {
         </div>
 
         {/* Technical Formulation Footer */}
-        <div className="p-3.5 rounded-[8px] bg-white border border-[#E2E8F0] text-xs font-mono space-y-2">
+        <div className="p-3.5 rounded-[8px] bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-800 text-xs font-mono space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A] flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 text-[#4F46E5]" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#0F172A] dark:text-white flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5 text-[#4F46E5] dark:text-indigo-400" />
               <span>Tree SHAP Exact Attribution Mechanism</span>
             </span>
             <button
               onClick={() => setShowFormula(!showFormula)}
-              className="text-[11px] text-[#4F46E5] hover:underline cursor-pointer"
+              className="text-[11px] text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
             >
               {showFormula ? 'Hide Formulation' : 'View Mathematical Formulation'}
             </button>
           </div>
 
-          <p className="text-[11px] text-[#64748B] font-sans leading-relaxed">
+          <p className="text-[11px] text-[#64748B] dark:text-slate-400 font-sans leading-relaxed">
             Tree SHAP computes exact Shapley values across the ensemble trees in polynomial time <span className="font-mono font-semibold">O(TLD²)</span>. Rather than treating XGBoost as an uninterpretable black box, each detected cryptographic parameter receives an additive credit score that directly explains the vulnerability risk rating.
           </p>
 
