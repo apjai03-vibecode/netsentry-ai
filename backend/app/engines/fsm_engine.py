@@ -2,7 +2,7 @@
 from enum import Enum
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +32,26 @@ class IKEv1State(str, Enum):
 
 
 class IKEStateMachineTracker:
-    """Tracks state transitions across sequential IKE messages to detect protocol deviations."""
+    """
+    Tracks state transitions across sequential IKE messages to detect protocol deviations,
+    with retransmission de-duplication, NAT-T migration awareness, and handshake completion tracking.
+    """
 
     def __init__(self):
         self.state_v2 = IKEv2State.IDLE
         self.state_v1 = IKEv1State.IDLE
         self.packet_history: List[Dict[str, Any]] = []
+        self.seen_messages: Set[Tuple[int, bool, str]] = set()  # (msg_id, is_response, exchange)
+        self.retransmission_count: int = 0
+        self.handshake_completed: bool = False
 
     def reset(self):
         self.state_v2 = IKEv2State.IDLE
         self.state_v1 = IKEv1State.IDLE
         self.packet_history.clear()
+        self.seen_messages.clear()
+        self.retransmission_count = 0
+        self.handshake_completed = False
 
     def process_packet(
         self,
@@ -51,8 +60,11 @@ class IKEStateMachineTracker:
         msg_id: int,
         is_response: bool,
         is_initiator: bool,
-    ) -> None:
-        """Advance internal state machine based on incoming message metadata."""
+    ) -> bool:
+        """
+        Advance internal state machine based on incoming message metadata.
+        Returns True if this was a new stateful message, False if it was a retransmission.
+        """
         record = {
             "version": ike_version,
             "exchange": exchange_type,
@@ -62,10 +74,21 @@ class IKEStateMachineTracker:
         }
         self.packet_history.append(record)
 
+        # Retransmission de-duplication
+        msg_sig = (msg_id, is_response, exchange_type.upper())
+        if msg_sig in self.seen_messages:
+            self.retransmission_count += 1
+            logger.debug(f"Retransmission detected for msg_id={msg_id}, exch={exchange_type}. Skipping state advance.")
+            return False
+
+        self.seen_messages.add(msg_sig)
+
         if ike_version == 2:
             self._advance_v2(exchange_type, msg_id, is_response)
         elif ike_version == 1:
             self._advance_v1(exchange_type, is_response)
+
+        return True
 
     def _advance_v2(self, exchange: str, msg_id: int, is_response: bool) -> None:
         """IKEv2 state transition logic."""
@@ -80,6 +103,7 @@ class IKEStateMachineTracker:
                 self.state_v2 = IKEv2State.AUTH_REQ_SENT
             else:
                 self.state_v2 = IKEv2State.ESTABLISHED
+                self.handshake_completed = True
         elif "CHILD_SA" in exch_upper or "CREATE_CHILD" in exch_upper:
             if self.state_v2 == IKEv2State.ESTABLISHED:
                 self.state_v2 = IKEv2State.CHILD_SA
@@ -87,29 +111,32 @@ class IKEStateMachineTracker:
     def _advance_v1(self, exchange: str, is_response: bool) -> None:
         """IKEv1 Main Mode & Aggressive Mode state transition logic."""
         exch_upper = exchange.upper()
-        pkt_num = len(self.packet_history)
+        # Count non-duplicate messages seen so far
+        unique_count = len(self.seen_messages)
 
         if "AGGRESSIVE" in exch_upper:
-            if pkt_num == 1:
+            if unique_count == 1:
                 self.state_v1 = IKEv1State.AM_INIT_SENT
-            elif pkt_num == 2:
+            elif unique_count == 2:
                 self.state_v1 = IKEv1State.AM_RESP_RCVD
-            elif pkt_num >= 3:
+            elif unique_count >= 3:
                 self.state_v1 = IKEv1State.AM_ESTABLISHED
+                self.handshake_completed = True
         else:
             # Main mode sequence (1 to 6)
-            if pkt_num == 1:
+            if unique_count == 1:
                 self.state_v1 = IKEv1State.MM_SA_SENT
-            elif pkt_num == 2:
+            elif unique_count == 2:
                 self.state_v1 = IKEv1State.MM_SA_RCVD
-            elif pkt_num == 3:
+            elif unique_count == 3:
                 self.state_v1 = IKEv1State.MM_KE_SENT
-            elif pkt_num == 4:
+            elif unique_count == 4:
                 self.state_v1 = IKEv1State.MM_KE_RCVD
-            elif pkt_num == 5:
+            elif unique_count == 5:
                 self.state_v1 = IKEv1State.MM_AUTH_SENT
-            elif pkt_num >= 6:
+            elif unique_count >= 6:
                 self.state_v1 = IKEv1State.MM_ESTABLISHED
+                self.handshake_completed = True
 
     def evaluate_session(self, session_data: Any) -> List[Dict[str, Any]]:
         """
@@ -124,6 +151,7 @@ class IKEStateMachineTracker:
             exchange_types = session_data.get("exchange_types", [])
             packet_count = session_data.get("packet_count", 0)
             esp_packets = session_data.get("esp_packets", 0)
+            retransmissions = session_data.get("retransmissions", self.retransmission_count)
         else:
             ike_version = getattr(session_data, "ike_version", 2)
             et = getattr(session_data, "exchange_type", "") or ""
@@ -132,7 +160,15 @@ class IKEStateMachineTracker:
                 ets = [x.strip() for x in ets.split(",") if x.strip()]
             exchange_types = ets if ets else ([et] if et else [])
             packet_count = getattr(session_data, "packet_count", 0)
-            esp_packets = getattr(session_data, "esp_packets", 0)
+            esp_packets = getattr(session_data, "esp_packets", 0) or 0
+            if not esp_packets and hasattr(session_data, "raw_metadata_json") and session_data.raw_metadata_json:
+                try:
+                    meta = json.loads(session_data.raw_metadata_json) if isinstance(session_data.raw_metadata_json, str) else session_data.raw_metadata_json
+                    if isinstance(meta, dict):
+                        esp_packets = meta.get("esp_packets", 0) or 0
+                except Exception:
+                    pass
+            retransmissions = getattr(session_data, "retransmissions", self.retransmission_count)
 
         et_str_upper = " ".join(exchange_types).upper()
 
@@ -229,7 +265,25 @@ class IKEStateMachineTracker:
                     })
 
         # -------------------------------------------------------------
-        # 3. Protocol Downgrade Signal
+        # 3. Retransmission Flood Check
+        # -------------------------------------------------------------
+        if retransmissions > 5:
+            findings.append({
+                "rule_id": "FSM-RETRANSMISSION-BURST",
+                "category": "Network Quality",
+                "severity": "MEDIUM",
+                "title": f"Excessive IKE Retransmissions Detected ({retransmissions} packets)",
+                "description": (
+                    f"Observed {retransmissions} duplicate IKE message retransmissions. "
+                    "This pattern indicates high network loss, peer unreachability, or a potential IKE amplification attack."
+                ),
+                "rfc_reference": "RFC 7296 Section 2.1 / RFC 2409",
+                "evidence_json": json.dumps({"retransmissions": retransmissions, "packet_count": packet_count}),
+                "remediation_hint": "Verify network routing, MTU path discovery, and peer firewall state table limits.",
+            })
+
+        # -------------------------------------------------------------
+        # 4. Protocol Downgrade Signal
         # -------------------------------------------------------------
         has_v1 = ("MAIN" in et_str_upper) or ("AGGRESSIVE" in et_str_upper)
         has_v2 = ("INIT" in et_str_upper) or ("AUTH" in et_str_upper)
@@ -250,3 +304,13 @@ class IKEStateMachineTracker:
             })
 
         return findings
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Return structured summary of the FSM state and retransmission status."""
+        return {
+            "v2_state": self.state_v2.value,
+            "v1_state": self.state_v1.value,
+            "handshake_completed": self.handshake_completed,
+            "retransmission_count": self.retransmission_count,
+            "total_packets_processed": len(self.packet_history),
+        }

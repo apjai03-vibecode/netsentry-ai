@@ -16,6 +16,10 @@ import UploadZone from './components/UploadZone';
 import MLMetricsPanel from './components/MLMetricsPanel';
 import RulesCatalog from './components/RulesCatalog';
 import AuthModal from './components/AuthModal';
+import ThreatMatrix from './components/ThreatMatrix';
+import TrafficIntelligence from './components/TrafficIntelligence';
+import MetadataExposure from './components/MetadataExposure';
+import TestbedLab from './components/TestbedLab';
 import api from './api';
 import { 
   Download, 
@@ -42,6 +46,8 @@ function DashboardContent() {
   const [assessment, setAssessment] = useState(null);
   const [findings, setFindings] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [threatMatrixData, setThreatMatrixData] = useState(null);
+  const [metadataExposureData, setMetadataExposureData] = useState(null);
   const [loadingAssessment, setLoadingAssessment] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
@@ -67,6 +73,20 @@ function DashboardContent() {
       const sessionsRes = await api.get(`/ingest/jobs/${jobId}/sessions`);
       setSessions(sessionsRes.data || []);
 
+      try {
+        const tmRes = await api.get(`/assessments/${jobId}/threat-matrix`);
+        setThreatMatrixData(tmRes.data);
+      } catch (e) {
+        console.warn('Threat matrix fetch failed:', e);
+      }
+
+      try {
+        const meRes = await api.get(`/assessments/${jobId}/metadata-exposure`);
+        setMetadataExposureData(meRes.data);
+      } catch (e) {
+        console.warn('Metadata exposure fetch failed:', e);
+      }
+
       // Switch to audit tab to show fresh results
       setActiveTab('audit');
       setShowIngestBar(false);
@@ -77,18 +97,21 @@ function DashboardContent() {
     }
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = async (type = 'executive') => {
     if (!assessment || !assessment.upload_id) return;
     setDownloadingPdf(true);
     try {
-      const response = await api.get(`/assessments/${assessment.upload_id}/pdf`, {
+      const endpoint = type === 'technical'
+        ? `/assessments/${assessment.upload_id}/technical-pdf`
+        : `/assessments/${assessment.upload_id}/executive-pdf`;
+      const response = await api.get(endpoint, {
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `NetSentry-Audit-${assessment.upload_id.slice(0, 8)}.pdf`;
+      link.download = `NetSentry-${type === 'technical' ? 'Technical' : 'Executive'}-Audit-${assessment.upload_id.slice(0, 8)}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
     } catch (err) {
@@ -262,6 +285,112 @@ crypto ipsec profile NETSENTRY_PROFILE
           evidence_json: JSON.stringify({ exchange_type: 'Aggressive Mode', ike_version: 1, auth_method: 'Pre-Shared Key' }, null, 2),
         },
       ]);
+
+      setThreatMatrixData({
+        entries: [
+          {
+            finding: 'Weak Diffie-Hellman Group 2 (1024-bit MODP) Negotiated',
+            severity: 'CRITICAL',
+            evidence: 'Group 2 (1024-bit MODP) observed in IKE_SA_INIT proposal',
+            impact: 'Discrete log precomputation allows passive adversaries to recover shared secrets (Logjam attack).',
+            confidence: 1.0,
+            observability: 'OBSERVED',
+            reference: 'RFC 8247 Section 2.4 / NIST SP 800-57',
+            recommendation: 'Upgrade proposal to MODP-2048 (Group 14) or ECP-256 (Group 19).',
+          },
+          {
+            finding: 'Deprecated 3DES-CBC Encryption Cipher Detected',
+            severity: 'HIGH',
+            evidence: 'Transform ID 3 (3DES-CBC) with 64-bit block size in proposal payload',
+            impact: 'Short block size exposes ciphertext to Sweet32 collision attacks after 32GB of data transfer.',
+            confidence: 1.0,
+            observability: 'OBSERVED',
+            reference: 'RFC 8221 Section 5',
+            recommendation: 'Enforce AEAD AES-256-GCM encryption with 128-bit authentication tag.',
+          },
+          {
+            finding: 'IKEv1 Aggressive Mode with Pre-Shared Key (PSK)',
+            severity: 'HIGH',
+            evidence: 'Exchange Type 4 (Aggressive Mode), PSK authentication payload unencrypted in packet 1',
+            impact: 'Initiator identity and auth hash transmitted in clear before DH exchange; susceptible to offline dictionary cracking.',
+            confidence: 0.95,
+            observability: 'OBSERVED',
+            reference: 'RFC 2409 Section 5.4',
+            recommendation: 'Migrate to IKEv2 with mutual asymmetric public-key certificates.',
+          },
+          {
+            finding: 'Child SA Encrypted Inside IKE_AUTH',
+            severity: 'LOW',
+            evidence: 'Payload Type 46 (Encrypted & Authenticated) prevents passive visibility into Child SA proposals',
+            impact: 'Passive packet inspection cannot verify ESP ciphers without gateway session keys.',
+            confidence: 0.50,
+            observability: 'NOT_OBSERVABLE',
+            reference: 'RFC 7296 Section 1.2',
+            recommendation: 'Verify ESP cipher suite and replay window directly against gateway runtime config.',
+          }
+        ],
+        summary: {
+          total_findings: 4,
+          critical_count: 1,
+          high_count: 2,
+          medium_count: 0,
+          low_count: 1,
+          observed_count: 3,
+          inferred_count: 0,
+          not_observable_count: 1,
+        }
+      });
+
+      setMetadataExposureData({
+        exposure_level: 'MEDIUM',
+        exposure_score: 45.0,
+        observable_elements: [
+          {
+            category: 'Network Endpoints',
+            element: 'Public IP Pair (192.168.1.100 <-> 198.51.100.1)',
+            impact: 'Exposes communicating gateway entities and geographical routing paths to eavesdroppers.'
+          },
+          {
+            category: 'Signaling Ports',
+            element: 'UDP 500 / UDP 4500 (NAT-Traversal Active)',
+            impact: 'Identifies presence of IPsec daemon and address-translating intermediate firewall.'
+          },
+          {
+            category: 'Security Parameter Indexes',
+            element: 'Initiator SPI (11223344...) / ESP SPI (3a4b5c6d)',
+            impact: 'Allows passive correlation of multiple sessions to the same user or security association over time.'
+          },
+          {
+            category: 'Traffic Flow Dynamics',
+            element: 'Flow Volume & Sizing Profile (ESP payload lengths)',
+            impact: 'Packet sizes and inter-arrival timing expose behavioral application signatures.'
+          }
+        ],
+        confidential_elements: [
+          {
+            category: 'Application Payload Data',
+            protection: 'Encrypted inside ESP payloads (AES-GCM-256 / AES-CBC-256)'
+          },
+          {
+            category: 'Internal Subnets & Private IPs',
+            protection: 'Encapsulated within outer IPsec tunnel headers (Tunnel Mode)'
+          },
+          {
+            category: 'User Authentication Credentials',
+            protection: 'Protected by Diffie-Hellman Shared Secret (Encrypted IKE_AUTH)'
+          }
+        ],
+        inference_analysis: [
+          'Observer identifies continuous site-to-site communication between 192.168.1.100 and 198.51.100.1.',
+          'Client resides behind a NAT firewall or cellular carrier-grade NAT (CGNAT).',
+          'Traffic timing and packet length distributions expose behavioral application patterns (e.g., interactive Web vs. VoIP).'
+        ],
+        mitigation_recommendations: [
+          'Deploy IPsec Traffic Flow Confidentiality (TFC) padding per RFC 4303 to conceal true packet lengths.',
+          'Schedule periodic automated rekeying to cycle ESP SPI values.',
+          'Enable constant-rate dummy traffic insertion over sensitive site-to-site tunnels to eliminate flow timing leakage.'
+        ]
+      });
     }
   }, [assessment]);
 
@@ -394,6 +523,17 @@ crypto ipsec profile NETSENTRY_PROFILE
                       onSelectFinding={handleSelectFinding}
                     />
 
+                    {/* 7-COLUMN THREAT MATRIX */}
+                    <ThreatMatrix
+                      threatMatrixData={threatMatrixData}
+                      onSelectFinding={handleSelectFinding}
+                    />
+
+                    {/* METADATA EXPOSURE ANALYSIS */}
+                    <MetadataExposure
+                      metadataExposureData={metadataExposureData}
+                    />
+
                     {/* PROTOCOL FLOW & PACKET DISSECTOR */}
                     <SessionInspector
                       assessment={assessment}
@@ -424,7 +564,42 @@ crypto ipsec profile NETSENTRY_PROFILE
             </>
           )}
 
-          {/* 2. Dedicated Capture Ingest Tab */}
+          {/* 2. Dedicated 7-Column Threat Matrix Tab */}
+          {activeTab === 'threat-matrix' && (
+            <div className="space-y-6">
+              <ThreatMatrix
+                threatMatrixData={threatMatrixData}
+                onSelectFinding={handleSelectFinding}
+              />
+            </div>
+          )}
+
+          {/* 3. Dedicated Traffic Intelligence Tab */}
+          {activeTab === 'traffic' && (
+            <div className="space-y-6">
+              <TrafficIntelligence
+                sessionData={sessions[0] || {}}
+              />
+            </div>
+          )}
+
+          {/* 4. Dedicated Metadata Exposure Tab */}
+          {activeTab === 'metadata' && (
+            <div className="space-y-6">
+              <MetadataExposure
+                metadataExposureData={metadataExposureData}
+              />
+            </div>
+          )}
+
+          {/* 5. Dedicated Testbed & Lab Tab */}
+          {activeTab === 'testbed' && (
+            <div className="space-y-6">
+              <TestbedLab />
+            </div>
+          )}
+
+          {/* 6. Dedicated Capture Ingest Tab */}
           {activeTab === 'captures' && (
             <div className="space-y-6">
               <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 p-5 shadow-2xs transition-colors">
@@ -449,7 +624,7 @@ crypto ipsec profile NETSENTRY_PROFILE
             </div>
           )}
 
-          {/* 3. Dedicated Findings Catalog Tab */}
+          {/* 7. Dedicated Findings Catalog Tab */}
           {activeTab === 'findings' && (
             <div className="space-y-6">
               <SecurityFindings
@@ -459,7 +634,7 @@ crypto ipsec profile NETSENTRY_PROFILE
             </div>
           )}
 
-          {/* 4. Dedicated ML Intelligence Tab */}
+          {/* 8. Dedicated ML Intelligence Tab */}
           {activeTab === 'ml' && (
             <div className="space-y-6">
               <ModelValidation />
@@ -468,21 +643,21 @@ crypto ipsec profile NETSENTRY_PROFILE
             </div>
           )}
 
-          {/* 5. Dedicated RFC Library Tab */}
+          {/* 9. Dedicated RFC Library Tab */}
           {activeTab === 'rules' && (
             <div className="space-y-6">
               <RulesCatalog />
             </div>
           )}
 
-          {/* 6. Dedicated Remediation Diffs Tab */}
+          {/* 10. Dedicated Remediation Diffs Tab */}
           {activeTab === 'remediation' && (
             <div className="space-y-6">
               <RemediationDiff assessment={assessment} />
             </div>
           )}
 
-          {/* 7. Dedicated Reports Tab */}
+          {/* 11. Dedicated Reports Tab */}
           {activeTab === 'reports' && (
             <div className="space-y-6">
               <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 p-6 shadow-2xs space-y-4 transition-colors">
@@ -506,7 +681,20 @@ crypto ipsec profile NETSENTRY_PROFILE
                     </button>
 
                     <button
-                      onClick={handleDownloadPdf}
+                      onClick={() => handleDownloadPdf('technical')}
+                      disabled={downloadingPdf}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-white dark:bg-[#161E2E] text-[#0F172A] dark:text-white border border-[#E2E8F0] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                    >
+                      {downloadingPdf ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5 text-indigo-500" />
+                      )}
+                      <span>Export Technical PDF</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDownloadPdf('executive')}
                       disabled={downloadingPdf}
                       className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-[#0F172A] dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
                     >

@@ -1,10 +1,78 @@
 import React, { useState } from 'react';
-import { Terminal, Copy, Check, Download, ShieldCheck, AlertOctagon, Code2, Play, ExternalLink } from 'lucide-react';
+import { 
+  Terminal, 
+  Copy, 
+  Check, 
+  Download, 
+  ShieldCheck, 
+  AlertOctagon, 
+  Code2, 
+  Play, 
+  ExternalLink,
+  RotateCcw,
+  CheckSquare,
+  AlertTriangle,
+  Info
+} from 'lucide-react';
+
+const PRE_FLIGHT_CHECKLIST = [
+  {
+    id: 'CHK-01',
+    category: 'Peer Capability',
+    item: 'Verify remote peer gateway supports IKEv2 and proposed AEAD algorithms (AES-GCM-256, DH Group 14/19)',
+    command: 'strongSwan: swanctl --stats | Cisco: show crypto ikev2 capabilities',
+  },
+  {
+    id: 'CHK-02',
+    category: 'Firewall & NAT-T',
+    item: 'Verify UDP port 500 and UDP port 4500 are permitted along intermediate security boundaries',
+    command: 'nc -u -z -w 3 <peer_ip> 500 && nc -u -z -w 3 <peer_ip> 4500',
+  },
+  {
+    id: 'CHK-03',
+    category: 'Configuration Snapshot',
+    item: 'Create an offline backup copy of current active running configuration',
+    command: 'cp /etc/swanctl/conf.d/vpn-tunnel.conf /etc/swanctl/conf.d/vpn-tunnel.conf.bak',
+  },
+  {
+    id: 'CHK-04',
+    category: 'Maintenance Window',
+    item: 'Schedule operational maintenance window; active Child SAs will terminate during rekeying',
+    command: 'Operational change management approval',
+  },
+];
+
+const ROLLBACK_PROCEDURES = {
+  swanctl: {
+    title: 'strongSwan Rollback Procedure',
+    restore: 'cp /etc/swanctl/conf.d/vpn-tunnel.conf.bak /etc/swanctl/conf.d/vpn-tunnel.conf && swanctl --load-all',
+    verify: 'swanctl --list-sas',
+    steps: [
+      '1. Terminate failing SA: sudo swanctl --terminate --ike netsentry-vpn',
+      '2. Restore backup config: sudo cp /etc/swanctl/conf.d/vpn-tunnel.conf.bak /etc/swanctl/conf.d/vpn-tunnel.conf',
+      '3. Reload daemon policies: sudo swanctl --load-all',
+      '4. Re-initiate baseline tunnel: sudo swanctl --initiate --child net-traffic',
+    ],
+  },
+  cisco: {
+    title: 'Cisco IOS-XE Rollback Procedure',
+    restore: 'configure replace flash:pre-remediation.cfg force',
+    verify: 'show crypto session detail',
+    steps: [
+      '1. Enter privileged EXEC mode: enable',
+      '2. Replace running config from backup: configure replace flash:pre-remediation.cfg force',
+      '3. Clear stale crypto sessions: clear crypto session',
+      '4. Verify tunnel restoration: show crypto session detail',
+    ],
+  },
+};
 
 export default function RemediationDiff({ assessment }) {
   const [platform, setPlatform] = useState('swanctl');
   const [copied, setCopied] = useState(false);
   const [copiedVerify, setCopiedVerify] = useState(false);
+  const [copiedRollback, setCopiedRollback] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
 
   if (!assessment) return null;
 
@@ -15,14 +83,14 @@ export default function RemediationDiff({ assessment }) {
   let afterSnippet = afterFull;
 
   if (beforeFull.includes('! --- Cisco')) {
-    const partsBefore = beforeFull.split('! --- Cisco IOS Configuration ---');
-    const partsAfter = afterFull.split('! +++ Cisco IOS Remediated +++');
+    const partsBefore = beforeFull.split('! --- Cisco IOS');
+    const partsAfter = afterFull.split('! +++ Cisco IOS');
     if (platform === 'swanctl') {
       beforeSnippet = partsBefore[0]?.trim() || '';
       afterSnippet = partsAfter[0]?.trim() || '';
     } else {
-      beforeSnippet = '! --- Cisco IOS Configuration ---\n' + (partsBefore[1]?.trim() || '');
-      afterSnippet = '! +++ Cisco IOS Remediated +++\n' + (partsAfter[1]?.trim() || '');
+      beforeSnippet = '! --- Cisco IOS-XE Configuration ---\n' + (partsBefore[1]?.trim() || '');
+      afterSnippet = '! +++ Cisco IOS-XE Remediated ---\n' + (partsAfter[1]?.trim() || '');
     }
   }
 
@@ -36,6 +104,12 @@ export default function RemediationDiff({ assessment }) {
     navigator.clipboard.writeText(text);
     setCopiedVerify(true);
     setTimeout(() => setCopiedVerify(false), 2000);
+  };
+
+  const handleCopyRollback = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedRollback(true);
+    setTimeout(() => setCopiedRollback(false), 2000);
   };
 
   const handleDownload = (text, filename) => {
@@ -93,6 +167,47 @@ export default function RemediationDiff({ assessment }) {
   return (
     <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 shadow-2xs overflow-hidden transition-colors">
       
+      {/* Safe Remediation Notice Banner */}
+      <div className="bg-amber-500/10 border-b border-amber-500/20 px-5 py-2.5 flex items-center justify-between text-xs font-mono text-amber-800 dark:text-amber-300">
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span>
+            <b>SAFE REMEDIATION POLICY:</b> NetSentry generates hardened configuration diffs for administrator review. Automated deployment is disabled to prevent production tunnel outages.
+          </span>
+        </div>
+        <button
+          onClick={() => setShowChecklist(!showChecklist)}
+          className="text-[11px] underline font-bold hover:text-amber-900 dark:hover:text-amber-100 cursor-pointer shrink-0 ml-2"
+        >
+          {showChecklist ? 'Hide Checklist' : 'View Pre-Flight Checklist'}
+        </button>
+      </div>
+
+      {/* Pre-Flight Checklist Expandable Section */}
+      {showChecklist && (
+        <div className="p-5 bg-slate-50 dark:bg-slate-900/60 border-b border-[#E2E8F0] dark:border-slate-800 text-xs font-mono">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckSquare className="w-4 h-4 text-indigo-500" />
+            <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">
+              Mandatory Pre-Flight Interoperability Checklist:
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {PRE_FLIGHT_CHECKLIST.map((item) => (
+              <div key={item.id} className="p-3 bg-white dark:bg-slate-950 rounded border border-slate-200 dark:border-slate-800">
+                <span className="font-bold text-indigo-600 dark:text-indigo-400 block mb-1">
+                  [{item.id}] {item.category}:
+                </span>
+                <p className="text-slate-700 dark:text-slate-300 text-[11px] mb-2">{item.item}</p>
+                <div className="text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-900 p-1 rounded font-mono truncate" title={item.command}>
+                  Command: {item.command}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header & Platform Switcher */}
       <div className="px-5 py-3.5 border-b border-[#E2E8F0] dark:border-slate-800 bg-[#F6F8FB]/80 dark:bg-[#0F172A]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -127,7 +242,7 @@ export default function RemediationDiff({ assessment }) {
                 : 'text-[#64748B] dark:text-slate-400 hover:text-[#0F172A] dark:hover:text-white'
             }`}
           >
-            Cisco IOS-XE (crypto ikev2)
+            Cisco IOS-XE Template
           </button>
         </div>
       </div>
@@ -186,24 +301,43 @@ export default function RemediationDiff({ assessment }) {
 
       </div>
 
-      {/* Bottom Verification Command Strip */}
-      <div className="px-5 py-3 bg-[#0F172A] text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-emerald-400 font-bold flex items-center gap-1 shrink-0">
-            <Play className="w-3 h-3" /> Test & Apply:
-          </span>
-          <code className="text-slate-200 truncate bg-slate-800/80 px-2 py-0.5 rounded text-[11px]">
-            {verificationCommands[platform]}
-          </code>
+      {/* Bottom Action Strip: Verify & Rollback Guidance */}
+      <div className="px-5 py-3 bg-[#0F172A] text-slate-300 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-emerald-400 font-bold flex items-center gap-1 shrink-0">
+              <Play className="w-3 h-3" /> Apply:
+            </span>
+            <code className="text-slate-200 truncate bg-slate-800/80 px-2 py-0.5 rounded text-[11px]">
+              {verificationCommands[platform]}
+            </code>
+          </div>
+
+          <button
+            onClick={() => handleCopyVerify(verificationCommands[platform])}
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors cursor-pointer shrink-0"
+          >
+            {copiedVerify ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
+            <span>Copy</span>
+          </button>
         </div>
 
-        <button
-          onClick={() => handleCopyVerify(verificationCommands[platform])}
-          className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-mono text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors cursor-pointer self-start sm:self-auto shrink-0"
-        >
-          {copiedVerify ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
-          <span>{copiedVerify ? 'Copied Command' : 'Copy CLI Command'}</span>
-        </button>
+        {/* Rollback Procedure Command */}
+        <div className="flex items-center gap-2 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800">
+          <span className="text-rose-400 font-bold flex items-center gap-1 shrink-0">
+            <RotateCcw className="w-3 h-3" /> Rollback:
+          </span>
+          <code className="text-slate-300 truncate bg-slate-800/80 px-2 py-0.5 rounded text-[11px] max-w-xs" title={ROLLBACK_PROCEDURES[platform]?.restore}>
+            {ROLLBACK_PROCEDURES[platform]?.restore}
+          </code>
+          <button
+            onClick={() => handleCopyRollback(ROLLBACK_PROCEDURES[platform]?.restore)}
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors cursor-pointer shrink-0"
+          >
+            {copiedRollback ? <Check className="w-3 h-3 text-rose-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
+            <span>Copy</span>
+          </button>
+        </div>
       </div>
 
     </div>

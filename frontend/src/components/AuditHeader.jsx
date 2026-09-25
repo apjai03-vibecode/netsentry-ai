@@ -54,11 +54,26 @@ export default function AuditHeader({
             <span>JSON Evidence</span>
           </button>
 
+          {/* Action: Export Technical PDF */}
+          <button
+            onClick={() => onDownloadPdf && onDownloadPdf('technical')}
+            disabled={downloadingPdf}
+            title="Generate comprehensive Technical Audit PDF with full 7-column Threat Matrix and Diff details"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-white dark:bg-[#161E2E] text-[#0F172A] dark:text-slate-200 border border-[#CBD5E1] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+          >
+            {downloadingPdf ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+            ) : (
+              <Download className="w-3.5 h-3.5 text-indigo-500" />
+            )}
+            <span>Technical PDF</span>
+          </button>
+
           {/* Action: Export Executive PDF */}
           <button
-            onClick={onDownloadPdf}
+            onClick={() => onDownloadPdf && onDownloadPdf('executive')}
             disabled={downloadingPdf}
-            title="Generate publication-grade ReportLab PDF audit document"
+            title="Generate executive summary PDF audit brief"
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[7px] text-xs font-mono font-semibold bg-[#0F172A] dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
           >
             {downloadingPdf ? (
@@ -66,10 +81,11 @@ export default function AuditHeader({
             ) : (
               <Download className="w-3.5 h-3.5 text-slate-300" />
             )}
-            <span>Export Executive PDF</span>
+            <span>Executive PDF</span>
           </button>
         </div>
       </div>
+
 
       {/* Structured Technical Metadata Row */}
       <div className="px-5 py-3 bg-[#F6F8FB]/80 dark:bg-[#0F172A]/70 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-mono border-t border-[#E2E8F0]/40 dark:border-slate-800/60">

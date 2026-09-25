@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from celery import Celery
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +17,12 @@ from app.engines.rule_engine import RuleEngine
 from app.engines.fsm_engine import IKEStateMachineTracker
 from app.engines.scorer import RiskScorer
 from app.engines.remediation import RemediationGenerator
+from app.engines.protocol_ident import ProtocolIdentifier
+from app.engines.metadata_exposure import MetadataExposureAnalyzer
+from app.engines.threat_matrix import ThreatMatrixEngine
 from app.ml.ensemble import MLEnsemble
+from app.ml.flow_features import FlowFeatureExtractor
+from app.ml.traffic_classifier import VPNEncryptedTrafficClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +45,7 @@ celery_app.conf.update(
 
 
 async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
-    """Core async routine to decrypt, parse PCAP, and persist VPN session records."""
+    """Core async routine to decrypt, parse PCAP, and persist VPN session records and intelligence."""
     async with AsyncSessionLocal() as session:
         try:
             # 1. Update status to processing
@@ -55,19 +60,48 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
             # 2. Decrypt raw bytes in memory (zero plaintext write to disk)
             raw_pcap_bytes = decrypt_file_to_bytes(encrypted_path)
 
-            # 3. Parse IKE / IPsec sessions
+            # 3. Parse IKE / IPsec sessions (IPv4, IPv6, ESP, AH, NAT-T)
             parsed_sessions = IKEParser.parse_pcap(raw_pcap_bytes)
 
             rule_engine = RuleEngine()
             fsm_tracker = IKEStateMachineTracker()
+            flow_extractor = FlowFeatureExtractor()
+            traffic_classifier = VPNEncryptedTrafficClassifier.get_instance()
+
             total_findings = 0
             all_findings_for_job: list[dict] = []
             highest_vuln_prob: float = 0.0
             highest_anomaly_score: float = 0.0
             top_shap_features: list[dict] = []
+            traffic_classifications: list[dict] = []
 
             # 4. Insert VPNSession and Finding records
             for ps in parsed_sessions:
+                # Flow classification on packet sizes/times
+                flow_clf_result = None
+                if ps.packet_sizes and len(ps.packet_sizes) >= 2:
+                    extracted_feats = flow_extractor.extract(
+                        packet_sizes=ps.packet_sizes,
+                        packet_times=ps.packet_times,
+                        flow_duration=ps.flow_duration,
+                        flow_bytes=ps.flow_bytes,
+                        packet_count=ps.packet_count,
+                    )
+                    clf = traffic_classifier.classify(extracted_feats.to_vector())
+                    flow_clf_result = clf.dict()
+                    traffic_classifications.append(flow_clf_result)
+
+                # Store raw metadata including flow classification
+                raw_meta = dict(ps.raw_metadata or {})
+                if flow_clf_result:
+                    raw_meta["traffic_classification"] = flow_clf_result
+                raw_meta["ip_version"] = ps.ip_version
+                raw_meta["nat_t_detected"] = ps.nat_t_detected
+                raw_meta["retransmissions"] = ps.retransmissions
+                raw_meta["flow_bytes"] = ps.flow_bytes
+                raw_meta["esp_packets"] = ps.esp_packets
+                raw_meta["ah_packets"] = ps.ah_packets
+
                 vpn_session = VPNSession(
                     upload_id=job_id,
                     ike_version=ps.ike_version,
@@ -87,7 +121,7 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
                     pfs_enabled=ps.pfs_enabled,
                     esp_spi=ps.esp_spi,
                     packet_count=ps.packet_count,
-                    raw_metadata_json=json.dumps(ps.raw_metadata),
+                    raw_metadata_json=json.dumps(raw_meta),
                 )
                 session.add(vpn_session)
                 await session.flush()  # Obtain vpn_session.id
@@ -166,23 +200,56 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
                     session.add(finding)
                     total_findings += 1
 
-            # 5. Compute Risk Assessment & Actionable Remediation
+            # 5. Compute Risk Assessment & Advanced Engines
             risk_result = RiskScorer.calculate_score(
                 all_findings_for_job,
                 ml_vulnerability_prob=highest_vuln_prob,
                 ml_anomaly_score=highest_anomaly_score,
             )
 
-            rep_session = parsed_sessions[0] if parsed_sessions else None
+            rep_session = None
+            if parsed_sessions:
+                rep_session = max(
+                    parsed_sessions,
+                    key=lambda s: (
+                        1 if s.exchange_types else 0,
+                        s.packet_count or 0
+                    )
+                )
             remediation = RemediationGenerator.generate_all_remediations(
                 rep_session, all_findings_for_job
             )
+
+            # Protocol Ident & Metadata Exposure & Threat Matrix
+            proto_result = ProtocolIdentifier().analyze_session(rep_session).model_dump() if rep_session else None
+            meta_result = MetadataExposureAnalyzer().analyze_sessions(parsed_sessions).model_dump()
+            tm_result = ThreatMatrixEngine().generate_matrix(
+                rule_findings=all_findings_for_job,
+                protocol_ident=proto_result,
+                metadata_exposure=meta_result,
+                traffic_classifications=traffic_classifications,
+            ).model_dump()
+
+            # Enriched Summary Dictionary (Backward compatible + comprehensive)
+            enriched_summary = {
+                "severity_counts": risk_result.findings_summary,
+                "CRITICAL": risk_result.findings_summary.get("CRITICAL", 0),
+                "HIGH": risk_result.findings_summary.get("HIGH", 0),
+                "MEDIUM": risk_result.findings_summary.get("MEDIUM", 0),
+                "LOW": risk_result.findings_summary.get("LOW", 0),
+                "INFO": risk_result.findings_summary.get("INFO", 0),
+                "threat_matrix": tm_result,
+                "metadata_exposure": meta_result,
+                "protocol_ident": proto_result,
+                "traffic_classification": traffic_classifications,
+                "remediation": remediation,
+            }
 
             risk_assessment = RiskAssessment(
                 upload_id=job_id,
                 overall_score=risk_result.overall_score,
                 risk_level=risk_result.risk_level,
-                findings_summary_json=json.dumps(risk_result.findings_summary),
+                findings_summary_json=json.dumps(enriched_summary),
                 ml_anomaly_score=highest_anomaly_score,
                 shap_top_features_json=json.dumps(top_shap_features),
                 config_diff_before=remediation["combined_before"],
@@ -202,6 +269,7 @@ async def _execute_pcap_pipeline(job_id: str, encrypted_path: str) -> None:
             logger.info(
                 f"Successfully processed PCAP for Job {job_id}: "
                 f"{len(parsed_sessions)} sessions, {total_findings} findings, "
+                f"Threat Matrix entries: {len(tm_result.get('entries', []))}, "
                 f"Risk Score: {risk_result.overall_score} ({risk_result.risk_level})."
             )
 

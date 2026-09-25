@@ -1,0 +1,98 @@
+{
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1_score": 1.0,
+  "confusion_matrix": [
+    [
+      24,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      24,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      24,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      24,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      24,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      24,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      24
+    ]
+  ],
+  "classes": [
+    "Web",
+    "VoIP",
+    "Video",
+    "Messaging-like",
+    "Email-like",
+    "ICMP",
+    "Bulk/Data"
+  ],
+  "feature_importances": {
+    "packet_count": 0.0006,
+    "bytes_sent": 0.0101,
+    "bytes_received": 0.0264,
+    "mean_packet_size": 0.0743,
+    "packet_size_variance": 0.1076,
+    "min_packet_size": 0.0553,
+    "max_packet_size": 0.0754,
+    "packets_per_sec": 0.1202,
+    "bytes_per_sec": 0.1264,
+    "duration_seconds": 0.0419,
+    "mean_inter_arrival_time": 0.1368,
+    "var_inter_arrival_time": 0.1588,
+    "downlink_uplink_ratio": 0.0622,
+    "burst_factor": 0.004
+  },
+  "samples_trained": 672,
+  "samples_tested": 168
+}

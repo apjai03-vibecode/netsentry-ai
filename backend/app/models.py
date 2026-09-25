@@ -88,6 +88,19 @@ class VPNSession(Base):
     upload = relationship("UploadJob", back_populates="sessions")
     findings = relationship("Finding", back_populates="session", cascade="all, delete-orphan")
 
+    @property
+    def esp_packets(self) -> int:
+        """Extract esp_packets count from raw metadata JSON."""
+        if self.raw_metadata_json:
+            try:
+                import json
+                meta = json.loads(self.raw_metadata_json)
+                if isinstance(meta, dict):
+                    return int(meta.get("esp_packets", 0) or 0)
+            except Exception:
+                pass
+        return 0
+
 
 class Finding(Base):
     """Individual security vulnerability, RFC violation, or anomaly finding."""

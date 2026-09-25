@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import init_db
-from app.routers import assessment, auth, ingest, ml_metrics
+from app.routers import assessment, auth, ingest, ml_metrics, testbed, traffic
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,6 +53,9 @@ app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(ingest.router, prefix=settings.API_V1_STR)
 app.include_router(assessment.router, prefix=settings.API_V1_STR)
 app.include_router(ml_metrics.router, prefix=settings.API_V1_STR)
+app.include_router(testbed.router, prefix=settings.API_V1_STR)
+app.include_router(traffic.router, prefix=settings.API_V1_STR)
+
 
 
 @app.get("/", tags=["General"])

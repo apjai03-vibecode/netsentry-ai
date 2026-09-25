@@ -12,7 +12,10 @@ import {
   LogOut, 
   User, 
   X,
-  Terminal
+  Terminal,
+  Activity,
+  Eye,
+  Server
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
@@ -29,6 +32,10 @@ export default function Sidebar({
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'threat-matrix', label: 'Threat Matrix', icon: ShieldAlert, badge: '7-Col' },
+    { id: 'traffic', label: 'Traffic Intelligence', icon: Activity, badge: '14 Feat' },
+    { id: 'metadata', label: 'Metadata Exposure', icon: Eye },
+    { id: 'testbed', label: 'Testbed & Lab', icon: Server },
     { id: 'audit', label: 'Audits', icon: FileSearch, count: findingsCount > 0 ? findingsCount : null, countColor: 'bg-rose-100 text-[#DC2626] dark:bg-rose-950/60 dark:text-rose-400' },
     { id: 'captures', label: 'Captures', icon: UploadCloud },
     { id: 'findings', label: 'Findings', icon: ShieldAlert },
@@ -38,6 +45,7 @@ export default function Sidebar({
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+
 
   return (
     <>

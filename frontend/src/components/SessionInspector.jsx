@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, Eye, ShieldCheck, ShieldAlert, Lock, Unlock } from 'lucide-react';
 
 export default function SessionInspector({ assessment, findings = [] }) {
   const [selectedPacket, setSelectedPacket] = useState(0);
@@ -14,7 +14,14 @@ export default function SessionInspector({ assessment, findings = [] }) {
       msgId: '0x00000000',
       spi_i: '0x1122334455667788',
       spi_r: '0x0000000000000000',
-      payloads: ['Security Association (SA)', 'Key Exchange (KE: DH Group 2)', 'Nonce (Ni)', 'Identification (IDi)'],
+      observability: 'OBSERVED',
+      observabilityReason: 'Direct cleartext wire headers and transform proposal bytes per RFC 7296',
+      payloads: [
+        { name: 'Security Association (SA)', obs: 'OBSERVED' },
+        { name: 'Key Exchange (KE: DH Group 2)', obs: 'OBSERVED' },
+        { name: 'Nonce (Ni)', obs: 'OBSERVED' },
+        { name: 'Identification (IDi)', obs: 'OBSERVED' },
+      ],
       flags: 'Initiator (0x08)',
       status: 'warning',
       notes: 'Contains Proposal #1: ENCR=3DES-CBC, HASH=MD5, DH=Group 2 (1024-bit MODP). Initiator ID transmitted prior to encryption in Aggressive Mode.',
@@ -28,7 +35,15 @@ export default function SessionInspector({ assessment, findings = [] }) {
       msgId: '0x00000000',
       spi_i: '0x1122334455667788',
       spi_r: '0x99aabbccddeeff00',
-      payloads: ['SA (Accepted Prop #1)', 'Key Exchange (KE: DH Group 2)', 'Nonce (Nr)', 'Identification (IDr)', 'HASH(r)'],
+      observability: 'OBSERVED',
+      observabilityReason: 'Direct cleartext transform acceptance and public Diffie-Hellman value',
+      payloads: [
+        { name: 'SA (Accepted Prop #1)', obs: 'OBSERVED' },
+        { name: 'Key Exchange (KE: DH Group 2)', obs: 'OBSERVED' },
+        { name: 'Nonce (Nr)', obs: 'OBSERVED' },
+        { name: 'Identification (IDr)', obs: 'OBSERVED' },
+        { name: 'HASH(r)', obs: 'OBSERVED' },
+      ],
       flags: 'Response (0x20)',
       status: 'warning',
       notes: 'Responder accepts deprecated 3DES-CBC and weak MODP-1024. Computes public Diffie-Hellman value.',
@@ -42,7 +57,12 @@ export default function SessionInspector({ assessment, findings = [] }) {
       msgId: '0x00000001',
       spi_i: '0x1122334455667788',
       spi_r: '0x99aabbccddeeff00',
-      payloads: ['HASH(i) [Pre-Shared Key Hash]'],
+      observability: 'OBSERVED',
+      observabilityReason: 'Cleartext authentication hash transmitted on wire without secure channel',
+      payloads: [
+        { name: 'HASH(i) [Pre-Shared Key Hash]', obs: 'OBSERVED' },
+        { name: 'Child SA Proposals', obs: 'NOT_OBSERVABLE' },
+      ],
       flags: 'Initiator (0x08)',
       status: 'danger',
       notes: 'CRITICAL: Transmits cleartext PSK authentication hash. Offline dictionary attack allows recovery of the pre-shared secret.',
@@ -56,12 +76,30 @@ export default function SessionInspector({ assessment, findings = [] }) {
       msgId: 'Sequence 1..1042',
       spi_i: '0x3a4b5c6d',
       spi_r: '0x7e8f9a0b',
-      payloads: ['Encapsulating Security Payload (ESP)', 'IV (8 bytes)', 'Encrypted Payload', 'ICV (12 bytes HMAC-MD5)'],
+      observability: 'INFERRED',
+      observabilityReason: 'Tunnel Mode vs Transport Mode inferred from outer MTU; payload plaintext NOT OBSERVABLE',
+      payloads: [
+        { name: 'Outer IP Header & SPI', obs: 'OBSERVED' },
+        { name: 'ESP Sequence Number', obs: 'OBSERVED' },
+        { name: 'Traffic Profile / App Class', obs: 'INFERRED' },
+        { name: 'Payload Plaintext & Inner IPs', obs: 'NOT_OBSERVABLE' },
+      ],
       flags: 'Encrypted',
       status: 'warning',
       notes: 'Child SA active with 3DES-CBC. Subject to Sweet32 collision attacks after 32GB of data.',
     },
   ];
+
+  const getObservabilityBadge = (obs) => {
+    switch (obs) {
+      case 'OBSERVED':
+        return 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30';
+      case 'INFERRED':
+        return 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30';
+      default:
+        return 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/30';
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-[#111827] rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 shadow-2xs overflow-hidden transition-colors">
@@ -74,9 +112,19 @@ export default function SessionInspector({ assessment, findings = [] }) {
             Handshake State & Packet Sequence Inspector
           </h3>
         </div>
-        <span className="text-[11px] font-mono text-[#64748B] dark:text-slate-400">
-          Stateful FSM Engine • 4 Packets Dissected
-        </span>
+        
+        {/* Observability Taxonomy Legend */}
+        <div className="flex items-center gap-1.5 text-[10px] font-mono">
+          <span className="px-1.5 py-0.5 rounded border bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30 font-bold">
+            [OBSERVED] Wire
+          </span>
+          <span className="px-1.5 py-0.5 rounded border bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold">
+            [INFERRED] ML/Heuristic
+          </span>
+          <span className="px-1.5 py-0.5 rounded border bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/30 font-bold">
+            [NOT OBSERVABLE] Encrypted
+          </span>
+        </div>
       </div>
 
       {/* Packet Flow Strip */}
@@ -110,8 +158,11 @@ export default function SessionInspector({ assessment, findings = [] }) {
               <div className="mt-1.5 text-xs font-semibold text-[#0F172A] dark:text-white truncate">
                 {pkt.exchange.split('/')[0]}
               </div>
-              <div className="text-[10px] font-mono text-[#64748B] dark:text-slate-400 mt-0.5 truncate">
-                {pkt.direction}
+              <div className="flex items-center justify-between mt-1 text-[10px] font-mono">
+                <span className="text-[#64748B] dark:text-slate-400 truncate">{pkt.direction.split('➔')[0]}</span>
+                <span className={`px-1 rounded text-[8px] font-bold border ${getObservabilityBadge(pkt.observability)}`}>
+                  [{pkt.observability}]
+                </span>
               </div>
             </button>
           ))}
@@ -146,18 +197,34 @@ export default function SessionInspector({ assessment, findings = [] }) {
               </div>
             </div>
 
+            {/* Parsed Payloads with Observability Badges */}
             <div className="py-3 border-b border-[#E2E8F0] dark:border-slate-700/60">
-              <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block mb-1.5">Parsed Payloads & Transforms</span>
-              <div className="flex flex-wrap gap-1.5">
+              <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block mb-1.5">
+                Parsed Payloads & Cryptographic Boundary
+              </span>
+              <div className="flex flex-wrap gap-2">
                 {packets[selectedPacket].payloads.map((payload, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-700 text-slate-800 dark:text-slate-200 text-[11px]">
-                    {payload}
-                  </span>
+                  <div key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-slate-700 text-slate-800 dark:text-slate-200 text-[11px]">
+                    <span>{typeof payload === 'string' ? payload : payload.name}</span>
+                    <span className={`px-1 py-0.2 rounded text-[8px] font-bold border ${getObservabilityBadge(payload.obs || 'OBSERVED')}`}>
+                      [{payload.obs || 'OBSERVED'}]
+                    </span>
+                  </div>
                 ))}
               </div>
             </div>
 
-            <div className="pt-3">
+            {/* Observability Rationale */}
+            <div className="py-2.5 border-b border-[#E2E8F0] dark:border-slate-700/60 text-[11px]">
+              <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block mb-0.5">
+                Observability Taxonomy Verification:
+              </span>
+              <p className="text-slate-600 dark:text-slate-400 italic">
+                {packets[selectedPacket].observabilityReason}
+              </p>
+            </div>
+
+            <div className="pt-2.5">
               <span className="text-[10px] text-[#64748B] dark:text-slate-400 uppercase block mb-1">State Machine Protocol Telemetry</span>
               <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed font-sans">
                 {packets[selectedPacket].notes}

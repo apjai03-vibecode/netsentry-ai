@@ -103,6 +103,8 @@ class VPNSessionResponse(BaseModel):
     prf_algo: Optional[str] = None
     auth_method: Optional[str] = None
     pfs_enabled: bool = False
+    esp_spi: Optional[str] = None
+    esp_packets: int = 0
     packet_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
