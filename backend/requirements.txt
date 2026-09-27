@@ -6,7 +6,7 @@ python-multipart>=0.0.9
 email-validator>=2.1.0
 
 # Database & ORM
-sqlalchemy>=2.0.28
+sqlalchemy[asyncio]>=2.0.28
 asyncpg>=0.29.0
 aiosqlite>=0.20.0
 
